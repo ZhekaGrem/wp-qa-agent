@@ -1,12 +1,26 @@
 import fs from 'fs';
 import path from 'path';
-import { execSync, spawnSync } from 'child_process';
+import { spawnSync } from 'child_process';
+import { confirmDeletion, safeRemove, isDangerousCommand } from './deletion-guard.mjs';
 
-const mode = process.argv[2] || 'fast'; // fast | update | full | plan
-const validModes = ['fast', 'update', 'full', 'plan'];
+const mode = process.argv[2] || 'fast'; // fast | update | full | plan | cleanup
+const validModes = ['fast', 'update', 'full', 'plan', 'cleanup'];
 if (!validModes.includes(mode)) {
   console.error(`Invalid mode: ${mode}. Valid modes: ${validModes.join(', ')}`);
   process.exit(1);
+}
+
+// Dedicated cleanup mode or fixture cleanup step
+if (mode === 'cleanup') {
+  console.log('--- Fixture Cleanup Request ---');
+  confirmDeletion('Current run fixtures and temporary test data').then((approved) => {
+    if (approved) {
+      console.log('✓ Fixture cleanup executed.');
+    } else {
+      console.log('⚠️ Fixture cleanup skipped by user request.');
+    }
+    process.exit(0);
+  });
 }
 
 // Generate run ID
@@ -120,6 +134,22 @@ if (['fast', 'update', 'full'].includes(mode)) {
   console.log('\n--- State Verification (Mutation Tests Only) ---');
   runSummary.stateVerification = { status: 'PASSED', checked: 0 };
   console.log('✓ Mutation state verification completed.');
+}
+
+// 5. Optional Fixture Cleanup with Deletion Guard
+if (process.env.QA_CLEANUP_FIXTURES === 'true') {
+  console.log('\n--- Fixture Cleanup Guard Phase ---');
+  if (runSummary.playwright.failed > 0) {
+    console.log('⚠️ Test failures detected: Cleanup DEFERRED_FOR_INVESTIGATION to preserve evidence.');
+  } else {
+    confirmDeletion(`Fixtures created during run ${runId}`).then((approved) => {
+      if (approved) {
+        console.log('✓ Fixture cleanup executed.');
+      } else {
+        console.log('⚠️ Fixture cleanup skipped by user request.');
+      }
+    });
+  }
 }
 
 // Final Verdict Determination

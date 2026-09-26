@@ -1,0 +1,16 @@
+.env
+.env.qa
+node_modules/
+playwright-report/
+test-results/
+.DS_Store
+*.log
+
+# Ignore all generated QA run directories except .gitkeep
+qa/runs/*
+!qa/runs/.gitkeep
+
+# Keep persistent tracker files in Git
+# qa/test-catalog.json
+# qa/findings.json
+# qa/status.md

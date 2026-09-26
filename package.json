@@ -1,0 +1,26 @@
+{
+  "name": "wp-qa-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "WordPress QA Agent — modular guarded testing workflow with Playwright Test Agents",
+  "scripts": {
+    "test": "npx playwright test",
+    "qa:setup": "node scripts/validate-config.mjs",
+    "qa:fast": "node scripts/run-qa.mjs fast",
+    "qa:update": "node scripts/run-qa.mjs update",
+    "qa:full": "node scripts/run-qa.mjs full",
+    "qa:plan": "node scripts/run-qa.mjs plan",
+    "qa:html": "node scripts/run-qa.mjs html",
+    "validate": "node scripts/validate-config.mjs",
+    "playwright:install": "npx playwright install",
+    "agents:init": "npx playwright init-agents"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@wordpress/e2e-test-utils-playwright": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -29,5 +29,6 @@ export default defineConfig({
   projects: [
     { name: 'chromium-desktop', testIgnore: NOT_E2E, use: { ...devices['Desktop Chrome'] } },
     { name: 'chromium-mobile', testIgnore: NOT_E2E, use: { ...devices['Pixel 5'] } },
+    { name: 'detectors', testDir: './tests/detectors', use: { ...devices['Desktop Chrome'] } },
   ],
 });

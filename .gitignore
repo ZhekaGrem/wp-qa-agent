@@ -22,3 +22,6 @@ qa/runs/*
 # Generated QA output
 qa/latest-playwright-results.json
 qa/baselines/
+
+# Local agent workspace (plans' ledgers, briefs, review packages)
+.superpowers/

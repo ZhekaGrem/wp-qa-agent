@@ -17,7 +17,11 @@
     "qa:hooks": "node scripts/install-hooks.mjs",
     "validate": "node scripts/validate-config.mjs",
     "playwright:install": "npx playwright install",
-    "agents:init": "npx playwright init-agents"
+    "agents:init": "npx playwright init-agents",
+    "test:unit": "node --test \"tests/unit/*.test.mjs\"",
+    "test:integration": "node --test --test-concurrency=1 \"tests/integration/*.test.mjs\"",
+    "test:detectors": "npx playwright test --project=detectors",
+    "verify": "npm run test:unit && npm run test:detectors && npm run test:integration"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.1",
@@ -25,6 +29,6 @@
     "@wordpress/e2e-test-utils-playwright": "^1.0.0"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   }
 }

@@ -9,14 +9,19 @@
 DELETED_PROTECTED=$(git diff --cached --name-only --diff-filter=D | grep -E "^(qa/test-catalog\.json|qa/findings\.json|qa/status\.md|tests/seed\.spec\.ts|AGENTS\.md)$")
 
 if [ -n "$DELETED_PROTECTED" ]; then
+  if [ "$QA_ALLOW_DELETION" = "true" ]; then
+    echo "QA_ALLOW_DELETION=true: allowing deletion of protected file(s):"
+    echo "$DELETED_PROTECTED"
+    exit 0
+  fi
   echo ""
   echo "===================================================="
   echo " 🛑 GIT PRE-COMMIT HOOK: DELETION BLOCKED"
   echo " Attempting to commit deletion of protected file(s):"
   echo "$DELETED_PROTECTED"
   echo "===================================================="
-  echo "To delete protected QA catalog/finding files, you must stage them"
-  echo "and explicitly confirm with QA_ALLOW_DELETION=true."
+  echo "If the deletion is intended, commit again with the variable set:"
+  echo "  QA_ALLOW_DELETION=true git commit ..."
   echo ""
   exit 1
 fi

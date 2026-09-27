@@ -75,6 +75,23 @@ test('a script or iframe navigation to a refused URL is aborted in every frame a
   assert.ok(record.blocked.some((b) => b.startsWith('NAVIGATE ') && b.includes('logout')), record.blocked.join('\n'));
 });
 
+test('a script navigation to an allowed URL is reported as not scanned, not mislabeled', async (t) => {
+  const wp = createFakeWp();
+  const url = await wp.start();
+  t.after(() => wp.stop());
+  const dirs = { runs: tmp('wpqa-runs-'), baselines: tmp('wpqa-base-') };
+  // A second, unrelated page keeps this plan out of the "nothing scanned at
+  // all" BLOCKED case (aggregateRun treats an all-missing run as BLOCKED,
+  // same as the unreachable-site test above) so coverage can actually land
+  // on the INCOMPLETE status this test is about.
+  const { summary } = await scan(url, { runId: 'away-1', pages: ['/nav-away/', '/clean/'], viewports: [360], checkLinks: false }, dirs);
+  assert.equal(summary.coverage.status, 'INCOMPLETE');
+  const missing = summary.coverage.missing.find((m) => m.key === 'nav-away@360');
+  assert.ok(missing, JSON.stringify(summary.coverage.missing));
+  assert.match(missing.error, /navigated away to .*\/clean\//);
+  assert.deepEqual(summary.detections, []);
+});
+
 test('an unreachable site is BLOCKED with exit code 1', async () => {
   const dirs = { runs: tmp('wpqa-runs-'), baselines: tmp('wpqa-base-') };
   const { status, summary } = await scan('http://127.0.0.1:65530', { runId: 'down-1', pages: ['/'], viewports: [360] }, dirs);

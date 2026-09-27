@@ -51,6 +51,19 @@ if (plan) {
             await stabilizePage(page);
             const probes = await runProbes(page);
 
+            // A script or redirect to a URL the filter *allows* is never
+            // stopped by the guard, so without this check the scan would
+            // silently keep going against the new document while the record
+            // still claims it describes target.url. A *refused* navigation
+            // is aborted, but Chromium still commits the frame to its
+            // network-error page (chrome-error://chromewebdata/) rather than
+            // leaving page.url() unchanged, so that case is told apart by
+            // record.blocked instead of by comparing URLs.
+            const stripHash = (u: string) => u.split('#')[0];
+            if (stripHash(page.url()) !== stripHash(finalUrl) && record.blocked.length === 0) {
+              throw new Error(`page navigated away to ${page.url()} during the scan`);
+            }
+
             if (record.status && record.status >= 400) {
               record.detections.push({ id: 'NET-HTTP-ERROR', severity: record.status >= 500 ? 'critical' : 'high', message: `Page returned HTTP ${record.status}`, selector: '', match: String(record.status), evidence: target.url });
             }

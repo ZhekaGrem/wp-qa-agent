@@ -19,6 +19,7 @@
     "agents:init": "npx playwright init-agents"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.1",
     "@playwright/test": "^1.56.0",
     "@wordpress/e2e-test-utils-playwright": "^1.0.0"
   },

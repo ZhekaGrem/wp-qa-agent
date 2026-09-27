@@ -13,6 +13,18 @@ Use the project skills under `skills/` for WordPress and WooCommerce QA followin
 
 ---
 
+## Write / Mutation Protection Policy (Mandatory Hook)
+
+**Any operation that changes data on the target site** — creating/updating posts, pages, users, options, settings, comments; installing/activating/updating plugins or themes; submitting forms, checkout, or payment flows — **IS BLOCKED BY DEFAULT** and requires explicit human confirmation, exactly like deletions. Read-only browsing, screenshots, and GET requests are never blocked.
+
+- **Interactive Execution:** Asks user confirmation before every mutating action: `Do you confirm this change on the site: "<action>"? (y/N)` (`scripts/write-guard.mjs` → `confirmWrite()`).
+- **Automated / CI Execution:** Refuses execution unless `QA_ALLOW_WRITES=true` is explicitly set in `.env.qa`.
+- **Intercepted Commands/APIs:** `wp post|page|user|option|term|comment create|update`, `wp plugin install|activate|deactivate|update`, `wp theme install|activate|update`, `wp core update`, `curl -X POST|PUT|PATCH|DELETE`, `INSERT INTO`, `UPDATE ... SET`.
+- **Related toggles:** `QA_ALLOW_UPDATES` (plugin/theme/core updates), `QA_ALLOW_EMAIL`, `QA_ALLOW_PAYMENTS`, `QA_ALLOW_REFUNDS` — each stays `false` by default and gates its own category of mutation.
+- **Scope:** applies everywhere, including production. Since this project only has browser-level access to the live site (no WP-CLI/SSH), fixture creation and state changes go through the WordPress REST API or wp-admin UI automation — both still pass through the same confirmation gate before anything is written.
+
+---
+
 ## Workflow Modes
 
 Instead of a single compulsory 17-step pipeline on every run, the workflow is split into 3 practical execution modes plus an opt-in Planner mode:
@@ -75,6 +87,8 @@ flowchart TD
 - `npm run qa:cleanup` — Safely cleans fixtures with Deletion Guard confirmation prompt.
 - `npm run qa:hooks` — Installs or refreshes Git Deletion Protection hooks.
 
+`scripts/write-guard.mjs` (`confirmWrite`, `isWriteCommand`) is the Write Guard counterpart to `scripts/deletion-guard.mjs` — any skill or script performing a mutating action on the target site imports it and asks for confirmation first.
+
 ---
 
 ## Simplified Run Artifacts
@@ -119,6 +133,7 @@ When a test fails, classify the cause into one of 3 distinct categories:
 ## Safety & Evidence Rules
 
 - **All deletions must pass Deletion Guard confirmation.**
+- **All data-mutating actions must pass Write Guard confirmation** — no exceptions for production.
 - Never report `PASS` without empirical evidence.
 - Production is denied by default. All write operations require staging/local confirmation.
 - Agent never sets `CLOSED` on findings — closing defects is a human decision.

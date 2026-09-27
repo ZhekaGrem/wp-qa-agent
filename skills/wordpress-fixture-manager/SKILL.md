@@ -10,6 +10,7 @@ allowed-tools: Read, Grep, Glob, Bash
 - Read the latest `00-environment.json`.
 - Refuse to continue unless verdict is PASS.
 - Default to `PLAN_ONLY` when `QA_ALLOW_WRITES` is not `true`.
+- Even when `QA_ALLOW_WRITES=true`, every mutating call must pass the Write Guard interactive confirmation (`scripts/write-guard.mjs` → `confirmWrite()`) before it executes — see AGENTS.md "Write / Mutation Protection Policy".
 
 ## Principles
 

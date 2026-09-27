@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { confirmDeletion, safeRemove, isDangerousCommand } from './deletion-guard.mjs';
+import { confirmWrite, isWriteCommand } from './write-guard.mjs';
 
 const mode = process.argv[2] || 'fast'; // fast | update | full | plan | cleanup
 const validModes = ['fast', 'update', 'full', 'plan', 'cleanup'];

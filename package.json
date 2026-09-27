@@ -15,6 +15,7 @@
     "qa:cleanup": "node scripts/run-qa.mjs cleanup",
     "qa:hooks": "node scripts/install-hooks.mjs",
     "qa:inventory": "node scripts/wp-inventory.mjs",
+    "qa:visual": "node scripts/visual-qa.mjs",
     "validate": "node scripts/validate-config.mjs",
     "playwright:install": "npx playwright install",
     "agents:init": "npx playwright init-agents",

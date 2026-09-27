@@ -30,5 +30,12 @@ export default defineConfig({
     { name: 'chromium-desktop', testIgnore: NOT_E2E, use: { ...devices['Desktop Chrome'] } },
     { name: 'chromium-mobile', testIgnore: NOT_E2E, use: { ...devices['Pixel 5'] } },
     { name: 'detectors', testDir: './tests/detectors', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'visual',
+      testDir: './tests/visual',
+      // Relative templates resolve against this config's directory.
+      snapshotPathTemplate: `${(process.env.QA_BASELINES_DIR || 'qa/baselines').replace(/\\/g, '/')}/{arg}{ext}`,
+      use: { browserName: 'chromium' },
+    },
   ],
 });

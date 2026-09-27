@@ -6,6 +6,7 @@
   "description": "WordPress QA Agent — modular guarded testing workflow with Playwright Test Agents & Deletion Guard Hooks",
   "scripts": {
     "test": "npx playwright test",
+    "prepare": "node scripts/install-hooks.mjs",
     "qa:setup": "node scripts/validate-config.mjs && node scripts/install-hooks.mjs",
     "qa:fast": "node scripts/run-qa.mjs fast",
     "qa:update": "node scripts/run-qa.mjs update",

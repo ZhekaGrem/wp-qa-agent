@@ -15,8 +15,8 @@
 | **`npm run qa:full`** 🛡️ | Guard → (якщо є доступ до коду) PHPCS/PHPUnit/Plugin Check → повний Playwright → Axe A11y → Visual → звіт. Без коду сервера — кроки PHPCS/PHPUnit/Plugin Check автоматично пропускаються. | Перед релізом / повний аудит. Найдовший режим. |
 | **`npm run qa:plan`** 🗺️ | Playwright Planner досліджує сайт → генерує `test-plan.md` → людина затверджує план → Generator створює `.spec.ts`. | При підключенні нового сайту чи нової фічі, коли тестів ще немає. |
 | `npm run qa:cleanup` 🧹 | Чистка тестових фікстур із обов'язковим запитом підтвердження. | Прибрати сутності, створені під час тестів. |
-| `npm run qa:setup` | Перевіряє інструментарій і встановлює Git-хуки Deletion/Write Guard. | Один раз при першому запуску або після оновлення проєкту. |
-| `npm run qa:hooks` | Перевстановлює Git-хуки захисту. | Якщо хуки злетіли або репозиторій переклонований. |
+| `npm run qa:setup` | Перевіряє інструментарій і підключає версійований `.githooks/` (`git config core.hooksPath`). | Один раз при першому запуску — хоча `npm install` вже робить це сам. |
+| `npm run qa:hooks` | Повторно виставляє `core.hooksPath`, якщо його хтось скинув. | Якщо `git config core.hooksPath` злетів (наприклад після `git config --unset`). |
 | `npm test` | Прямий `npx playwright test` без обгортки qa-runner. | Точковий запуск окремого спека під час дебагу. |
 
 **Практичне правило:** день у день — `qa:fast`; перед/після апдейту плагіна — `qa:update`; перед релізом — `qa:full`; для нового сайту, де ще немає тестів, — спочатку `qa:plan`.
@@ -43,7 +43,7 @@
 1. **Інтерактивне підтвердження:** При спробі видалити фікстури, бази даних чи файли виводиться запит:
    `❓ Do you confirm deleting "<target>"? (y/N)`
 2. **Перехоплення небезпечних команд:** Перехоплюються команди `rm`, `unlink`, `wp post delete`, `wp user delete`, `wp option delete`, `wp db reset`, `DROP TABLE`.
-3. **Git Pre-commit Hook:** Автоматичний хук у `.git/hooks/pre-commit` блокує випадкове видалення критичних файлів каталогу (`qa/test-catalog.json`, `qa/findings.json`, `tests/seed.spec.ts`).
+3. **Git Pre-commit Hook:** Хук лежить у версійованому `.githooks/pre-commit` (а не в непідконтрольному git `.git/hooks/`), тож він реально приїжджає разом з репозиторієм при клонуванні. `npm install` сам виконує `git config core.hooksPath .githooks` (через `prepare`-скрипт) — нічого додатково запускати не треба. Блокує випадкове видалення критичних файлів каталогу (`qa/test-catalog.json`, `qa/findings.json`, `tests/seed.spec.ts`, `AGENTS.md`).
 
 ## ✋ Політика Захисту від Запису (Write Protection)
 
@@ -54,6 +54,7 @@
 2. **Перехоплення команд запису:** `wp post/option/user create|update`, `wp plugin install|activate|update`, `wp theme install|activate`, `wp core update`, `curl -X POST/PUT/PATCH`, `INSERT INTO`, `UPDATE ... SET`.
 3. **Автоматизований запуск (CI):** без інтерактивного терміналу зміна відхиляється, поки в `.env.qa` явно не виставлено `QA_ALLOW_WRITES=true` (і окремо `QA_ALLOW_UPDATES`/`QA_ALLOW_EMAIL`/`QA_ALLOW_PAYMENTS`/`QA_ALLOW_REFUNDS` для відповідних категорій).
 4. **Діє й при `QA_ALLOW_WRITES=true`:** прапорець лише дозволяє запит підтвердження з'явитися в CI; в інтерактивному режимі підтвердження людини потрібне завжди.
+5. **Дії в самій wp-admin (через браузер):** `write-guard.mjs` бачить лише shell/WP-CLI/curl команди, а не кліки в браузері. Для дій через Playwright MCP / Chrome DevTools MCP (клік, введення тексту, drag, вибір опції, завантаження файлу, виконання JS) стоїть окремий **PreToolUse хук Claude Code** (`.claude/settings.json` → `scripts/wp-admin-write-guard.mjs`) — він на рівні харнесу вимагає підтвердження людини перед виконанням цих інструментів. Read-only дії (навігація, скріншот, snapshot, читання консолі/мережі) дозволені без запиту. Це працює навіть якщо агент "вирішить" цього не робити — хук не залежить від інструкцій у промпті.
 
 ---
 
@@ -80,6 +81,7 @@ PHP, Composer, WP-CLI — **не потрібні**, якщо є лише бра
 npm install
 npx playwright install
 ```
+*`npm install` автоматично підключає версійовані Git-хуки з `.githooks/` (нічого додатково запускати не треба).*
 
 ### 2. Створення конфігураційного файлу
 ```bash

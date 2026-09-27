@@ -1,0 +1,24 @@
+#!/bin/sh
+# WordPress QA Agent - Pre-commit Deletion Protection Hook
+# Tracked in Git at .githooks/pre-commit (see scripts/install-hooks.mjs,
+# which points Git at this file via `git config core.hooksPath .githooks`).
+# Do not edit .git/hooks/pre-commit directly - it is not version controlled
+# and will not be shared with other clones or CI checkouts.
+
+# Check if persistent tracking files or core specs are deleted in this commit
+DELETED_PROTECTED=$(git diff --cached --name-only --diff-filter=D | grep -E "^(qa/test-catalog\.json|qa/findings\.json|qa/status\.md|tests/seed\.spec\.ts|AGENTS\.md)$")
+
+if [ -n "$DELETED_PROTECTED" ]; then
+  echo ""
+  echo "===================================================="
+  echo " 🛑 GIT PRE-COMMIT HOOK: DELETION BLOCKED"
+  echo " Attempting to commit deletion of protected file(s):"
+  echo "$DELETED_PROTECTED"
+  echo "===================================================="
+  echo "To delete protected QA catalog/finding files, you must stage them"
+  echo "and explicitly confirm with QA_ALLOW_DELETION=true."
+  echo ""
+  exit 1
+fi
+
+exit 0

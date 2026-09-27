@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__playwright__.*|mcp__chrome-devtools__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/wp-admin-write-guard.mjs",
+            "timeout": 10,
+            "statusMessage": "Checking Write Guard policy..."
+          }
+        ]
+      }
+    ]
+  }
+}

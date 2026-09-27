@@ -9,7 +9,7 @@ Use the project skills under `skills/` for WordPress and WooCommerce QA followin
 - **Interactive Execution:** Asks user confirmation: `Do you confirm deleting "<target>"? (y/N)`
 - **Automated / CI Execution:** Refuses execution unless `QA_ALLOW_DELETION=true` is explicitly set in `.env.qa`.
 - **Intercepted Commands/APIs:** `rm`, `unlink`, `wp post delete`, `wp user delete`, `wp option delete`, `wp db reset`, `DROP TABLE`, `DELETE FROM`.
-- **Git Hook Protection:** Pre-commit hook (`.git/hooks/pre-commit`) blocks committing deletions of protected QA files (`qa/test-catalog.json`, `qa/findings.json`, `qa/status.md`, `tests/seed.spec.ts`).
+- **Git Hook Protection:** Pre-commit hook lives at `.githooks/pre-commit` — version-controlled and shipped with the repo, not generated into the untracked `.git/hooks/` folder. `npm install` runs `scripts/install-hooks.mjs` via the `prepare` lifecycle script, which sets `git config core.hooksPath .githooks` so every clone/CI checkout gets it automatically. It blocks committing deletions of protected QA files (`qa/test-catalog.json`, `qa/findings.json`, `qa/status.md`, `tests/seed.spec.ts`, `AGENTS.md`).
 
 ---
 
@@ -22,6 +22,7 @@ Use the project skills under `skills/` for WordPress and WooCommerce QA followin
 - **Intercepted Commands/APIs:** `wp post|page|user|option|term|comment create|update`, `wp plugin install|activate|deactivate|update`, `wp theme install|activate|update`, `wp core update`, `curl -X POST|PUT|PATCH|DELETE`, `INSERT INTO`, `UPDATE ... SET`.
 - **Related toggles:** `QA_ALLOW_UPDATES` (plugin/theme/core updates), `QA_ALLOW_EMAIL`, `QA_ALLOW_PAYMENTS`, `QA_ALLOW_REFUNDS` — each stays `false` by default and gates its own category of mutation.
 - **Scope:** applies everywhere, including production. Since this project only has browser-level access to the live site (no WP-CLI/SSH), fixture creation and state changes go through the WordPress REST API or wp-admin UI automation — both still pass through the same confirmation gate before anything is written.
+- **wp-admin browser actions (Playwright MCP / Chrome DevTools MCP):** `scripts/write-guard.mjs` only sees shell/WP-CLI/curl commands. The actual path the agent uses to touch wp-admin is browser automation through the MCP tools (`mcp__playwright__*`, `mcp__chrome-devtools__*`), which never goes through Bash. This is gated separately by a **PreToolUse hook** (`.claude/settings.json` → `scripts/wp-admin-write-guard.mjs`): any click, type, fill, drag, select, file upload, dialog handling, or script evaluation on those tools is routed to `permissionDecision: "ask"` — the agent cannot save/change anything in wp-admin without a human approving that specific tool call. Read-only actions (navigate, screenshot, snapshot, console/network inspection) are explicitly allowed and never prompt. An unrecognized/new MCP tool action defaults to `ask` (fail-safe). This is a harness-level control, independent of what the agent decides to do — it cannot be bypassed by instructions in a prompt.
 
 ---
 
@@ -79,13 +80,13 @@ flowchart TD
 
 ## Commands & Execution
 
-- `npm run qa:setup` — Validates environment, runtimes (Node, PHP, WP-CLI, Playwright), and installs Git Deletion Guard hooks.
+- `npm run qa:setup` — Validates environment, runtimes (Node, PHP, WP-CLI, Playwright), and points Git at the tracked `.githooks/` directory (also runs automatically on `npm install` via the `prepare` script).
 - `npm run qa:fast` — Daily smoke & E2E test run (fast, focused, minimal token overhead).
 - `npm run qa:update` — Plugin/theme update verification with visual comparisons and critical regression checks.
 - `npm run qa:full` — Comprehensive pre-release audit (PHPCS, PHPUnit, Plugin Check, Playwright, Axe A11y, Visual).
 - `npm run qa:plan` — Explores a new site or feature to generate test plans and `.spec.ts` files.
 - `npm run qa:cleanup` — Safely cleans fixtures with Deletion Guard confirmation prompt.
-- `npm run qa:hooks` — Installs or refreshes Git Deletion Protection hooks.
+- `npm run qa:hooks` — Re-runs the `core.hooksPath` configuration if it was ever reset (e.g. `git config --unset core.hooksPath`).
 
 `scripts/write-guard.mjs` (`confirmWrite`, `isWriteCommand`) is the Write Guard counterpart to `scripts/deletion-guard.mjs` — any skill or script performing a mutating action on the target site imports it and asks for confirmation first.
 

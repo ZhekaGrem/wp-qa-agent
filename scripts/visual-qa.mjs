@@ -4,6 +4,9 @@ import { spawnSync } from 'node:child_process';
 import { loadEnvFile } from '../lib/env.mjs';
 import { normalizePlan, newRunId } from '../lib/plan.mjs';
 import { aggregateRun } from '../lib/aggregate.mjs';
+import { applyReview, scanVerdict } from '../lib/review.mjs';
+import { mergeFindings } from '../lib/findings.mjs';
+import { renderReport } from '../lib/report.mjs';
 
 const [command, target, ...rest] = process.argv.slice(2);
 const option = (name) => (rest.includes(name) ? rest[rest.indexOf(name) + 1] : undefined);
@@ -53,6 +56,39 @@ function run(planPath) {
   process.exit(summary.coverage.status === 'BLOCKED' ? 1 : 0);
 }
 
+function finalize(runDir) {
+  const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+  const detectionsFile = path.join(runDir || '', 'detections.json');
+  if (!runDir || !fs.existsSync(detectionsFile)) fail(`No detections.json in ${runDir}. Run the scan first.`);
+  const summary = read(detectionsFile);
+  const plan = read(path.join(runDir, 'plan.json'));
+  const reviewFile = path.join(runDir, 'review.json');
+  const review = fs.existsSync(reviewFile) ? read(reviewFile) : null;
+  const applied = applyReview(summary, review);
+  const result = scanVerdict(summary, applied);
+  const now = new Date().toISOString();
+
+  let findingIds = [];
+  if (applied.confirmed.length) {
+    const storeFile = process.env.QA_FINDINGS_FILE || path.join('qa', 'findings.json');
+    const merged = mergeFindings(read(storeFile), applied.confirmed, { runId: summary.runId, now });
+    fs.writeFileSync(storeFile, `${JSON.stringify(merged.store, null, 2)}\n`);
+    findingIds = merged.touched;
+  }
+
+  fs.writeFileSync(path.join(runDir, 'summary.json'), JSON.stringify({
+    runId: summary.runId, verdict: result.verdict, reasons: result.reasons, coverage: summary.coverage,
+    confirmed: applied.confirmed.length, rejected: applied.rejected.length, undecided: applied.undecided,
+    findings: findingIds, reviewed: Boolean(review), finalizedAt: now,
+  }, null, 2));
+  fs.writeFileSync(path.join(runDir, 'report.md'), renderReport({ plan, summary, applied, result, findingIds }));
+
+  console.log(`Verdict: ${result.verdict}`);
+  for (const r of result.reasons) console.log(`  ${r}`);
+  console.log(`Report: ${path.join(runDir, 'report.md')}`);
+}
+
 loadEnvFile(option('--env') || '.env.qa');
 if (command === 'run') run(target);
+else if (command === 'finalize') finalize(target);
 else fail('Usage: node scripts/visual-qa.mjs run <plan.json> [--dry-run] [--env <file>] | finalize <run-dir> [--env <file>]');

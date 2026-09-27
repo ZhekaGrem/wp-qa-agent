@@ -106,3 +106,29 @@ test('an unreachable site is BLOCKED with exit code 1', async () => {
   assert.equal(summary.coverage.status, 'BLOCKED');
   assert.match(summary.coverage.missing[0].error, /ERR_CONNECTION_REFUSED|ECONNREFUSED/);
 });
+
+test('finalize: undecided -> REVIEW, then a confirmed shortcode -> FAIL with a finding', async (t) => {
+  const wp = createFakeWp();
+  const url = await wp.start();
+  t.after(() => wp.stop());
+  const dirs = { runs: tmp('wpqa-runs-'), baselines: tmp('wpqa-base-') };
+  const { summary } = await scan(url, { runId: 'fin-1', request: 'перевір текст', pages: ['/text-defects/'], viewports: [1366], checkLinks: false }, dirs);
+  const runDir = path.join(dirs.runs, 'fin-1');
+  const findingsFile = path.join(tmp('wpqa-findings-'), 'findings.json');
+  fs.writeFileSync(findingsFile, JSON.stringify({ version: 1, updatedAt: '', findings: [] }));
+  const finalize = () => runProcess('node', ['scripts/visual-qa.mjs', 'finalize', runDir, '--env', path.join(dirs.runs, 'none.env')], { env: { QA_FINDINGS_FILE: findingsFile } });
+
+  await finalize();
+  assert.equal(JSON.parse(fs.readFileSync(path.join(runDir, 'summary.json'), 'utf8')).verdict, 'REVIEW');
+
+  const shortcode = summary.detections.find((d) => d.id === 'TXT-SHORTCODE');
+  const decisions = summary.detections.map((d) => ({ ref: d.ref, decision: d.ref === shortcode.ref ? 'confirmed' : 'rejected', reason: 'test' }));
+  fs.writeFileSync(path.join(runDir, 'review.json'), JSON.stringify({ decisions }));
+  await finalize();
+  const final = JSON.parse(fs.readFileSync(path.join(runDir, 'summary.json'), 'utf8'));
+  assert.equal(final.verdict, 'FAIL');
+  const store = JSON.parse(fs.readFileSync(findingsFile, 'utf8'));
+  assert.equal(store.findings.length, 1);
+  assert.equal(store.findings[0].status, 'OPEN');
+  assert.match(fs.readFileSync(path.join(runDir, 'report.md'), 'utf8'), /\*\*Вердикт:\*\* `FAIL`/);
+});

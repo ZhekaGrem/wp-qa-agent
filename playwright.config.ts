@@ -1,4 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
+import { loadEnvFile } from './lib/env.mjs';
+
+loadEnvFile('.env.qa');
+
+const baseURL = process.env.QA_BASE_URL || 'http://localhost:9400';
+// Folders under tests/ that are not site E2E specs.
+const NOT_E2E = ['**/unit/**', '**/integration/**', '**/support/**', '**/fixtures/**', '**/visual/**', '**/detectors/**'];
 
 export default defineConfig({
   testDir: './tests',
@@ -9,24 +16,18 @@ export default defineConfig({
 
   reporter: [
     ['list'],
-    ['html', { outputFolder: 'playwright-report' }],
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
     ['json', { outputFile: 'qa/latest-playwright-results.json' }],
   ],
 
   use: {
-    baseURL: process.env.QA_BASE_URL || 'http://localhost:9400',
+    baseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
 
   projects: [
-    {
-      name: 'chromium-desktop',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'chromium-mobile',
-      use: { ...devices['Pixel 5'] },
-    },
+    { name: 'chromium-desktop', testIgnore: NOT_E2E, use: { ...devices['Desktop Chrome'] } },
+    { name: 'chromium-mobile', testIgnore: NOT_E2E, use: { ...devices['Pixel 5'] } },
   ],
 });

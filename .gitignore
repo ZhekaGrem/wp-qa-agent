@@ -14,3 +14,11 @@ qa/runs/*
 # qa/test-catalog.json
 # qa/findings.json
 # qa/status.md
+
+# Local secrets and sessions
+.env.*
+.auth/
+
+# Generated QA output
+qa/latest-playwright-results.json
+qa/baselines/

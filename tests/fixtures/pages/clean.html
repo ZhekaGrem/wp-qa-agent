@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Чиста сторінка</title>
+<style>
+  body { margin: 0; font-family: sans-serif; }
+  header { position: sticky; top: 0; background: #fff; display: flex; gap: 8px; padding: 8px; }
+  .offcanvas { position: fixed; top: 0; right: 0; width: 280px; height: 100vh; transform: translateX(100%); background: #eee; }
+  .carousel { overflow: hidden; width: 100%; }
+  .track { display: flex; width: 300%; }
+  .track > div { width: 33.33%; height: 60px; }
+  .screen-reader-text { border: 0; clip: rect(1px, 1px, 1px, 1px); clip-path: inset(50%); height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; width: 1px; }
+  .ellipsis { width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .check input { opacity: 0; position: absolute; }
+  main { padding: 8px; }
+  img { max-width: 100%; height: auto; }
+  .url { overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/">Головна</a>
+  <a href="/clean/">Про нас</a>
+  <button aria-label="Відкрити меню"><svg width="16" height="16" aria-hidden="true"><rect width="16" height="16"/></svg></button>
+</header>
+<nav class="offcanvas" aria-label="Мобільне меню"><a href="/clean/">Послуги</a> <a href="/clean/">Контакти</a></nav>
+<main>
+  <h1>Ласкаво просимо</h1>
+  <span class="screen-reader-text">Перейти до вмісту</span>
+  <p>Ми допомагаємо компаніям з 2010 року. Ім'я та прізвище вказуйте повністю. Знижка 100% на першу консультацію.</p>
+  <p>Наші клієнти: España, São Paulo, Zürich.</p>
+  <p>Джерело [1] і примітка [sic].</p>
+  <p class="ellipsis">Дуже довгий заголовок новини, який навмисно обрізано трьома крапками</p>
+  <p class="url">https://example.ua/дуже/довгий/шлях/до/сторінки/який/не/має/ламати/верстку/на/мобільному</p>
+  <div class="carousel"><div class="track"><div>Слайд перший</div><div>Слайд другий</div><div>Слайд третій</div></div></div>
+  <img src="/img/200x100.png" alt="Схема" width="200" height="100">
+  <label class="check"><input type="checkbox"> Погоджуюсь з умовами</label>
+  <p>Телефон: +380 44 000 00 00</p>
+</main>
+</body>
+</html>

@@ -10,6 +10,8 @@ const positives = [
   ['Напишіть нам [contact-form-7 id="12" title="Form"]', '', ['TXT-SHORTCODE']],
   ['[vc_row][vc_column]Текст', '', ['TXT-SHORTCODE']],
   ['[gallery ids="1,2,3"]', '', ['TXT-SHORTCODE']],
+  ['[my-banner id="3"]', '', ['TXT-SHORTCODE']],
+  ['Text [/my-banner] end', '', ['TXT-SHORTCODE']],
   ['ÐŸÑ€Ð¸Ð²Ñ–Ñ‚', '', ['TXT-MOJIBAKE']],
   ['Itâ€™s great', '', ['TXT-MOJIBAKE']],
   ['cafÃ© menu', '', ['TXT-MOJIBAKE']],
@@ -42,6 +44,9 @@ const clean = [
   ['Телефон: +380 44 000 00 00', 'uk'],
   ['Ласкаво просимо до нашої крамниці', 'en'],
   ['https://example.ua/дуже/довгий/шлях', 'uk'],
+  ['See [English-version] for details', 'en'],
+  ['Побачити [important-note] нижче', 'uk'],
+  ['[re-edited] text', 'en'],
 ];
 
 for (const [text, lang] of clean) {

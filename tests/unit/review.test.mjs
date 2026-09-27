@@ -54,3 +54,19 @@ test('agent findings are defects; testId differs per quote and is stable', () =>
   assert.notEqual(a.confirmed[0].testId, a.confirmed[1].testId);
   assert.equal(applyReview(s, r).confirmed[0].testId, a.confirmed[0].testId);
 });
+
+test('a malformed detection decision is treated as undecided, not rejected, and reported as invalid', () => {
+  const s = summary();
+  const applied = applyReview(s, { decisions: [{ ref: 'D1', decision: 'confirm' }, { ref: 'D2', decision: 'rejected', reason: 'y' }] });
+  assert.equal(scanVerdict(s, applied).verdict, 'REVIEW');
+  assert.ok(applied.undecided.includes('D1'));
+  assert.deepEqual(applied.invalid, [{ ref: 'D1', value: 'confirm' }]);
+});
+
+test('a malformed compare decision is treated as unreviewed, not expected, and reported as invalid', () => {
+  const s = summary({ detections: [], compare: [{ key: 'home@1366', page: 'https://s.test/', viewport: 1366, status: 'CHANGED' }] });
+  const applied = applyReview(s, { compareDecisions: [{ key: 'home@1366', decision: 'fine' }] });
+  assert.equal(scanVerdict(s, applied).verdict, 'REVIEW');
+  assert.ok(applied.unreviewedChanges.includes('home@1366'));
+  assert.deepEqual(applied.invalid, [{ key: 'home@1366', value: 'fine' }]);
+});

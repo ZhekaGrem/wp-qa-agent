@@ -22,3 +22,20 @@ test('report shows request, verdict, coverage, defects, rejections and gaps', ()
   assert.match(md, /b@360 — timeout/);
   assert.match(md, /BUG-2026-001/);
 });
+
+test('free text does not inject markdown structure into the report', () => {
+  const md = renderReport({
+    plan: { request: 'a\nb', baseUrl: 'https://s.test/', mode: 'scan', audience: 'visitor' },
+    summary: { coverage: { planned: 1, scanned: 1, missing: [], status: 'COMPLETE' }, compare: [] },
+    applied: {
+      confirmed: [],
+      rejected: [{ ref: 'D2', id: 'VIS-OVERFLOW-X', page: 'https://s.test/a/', viewport: 360, reason: 'ok\n## Injected' }],
+      undecided: [], unreviewedChanges: [], missingBaselines: [], invalid: [],
+    },
+    result: { verdict: 'PASS', reasons: [] },
+    findingIds: [],
+  });
+  assert.ok(!md.split('\n').some((l) => l.startsWith('## Injected')));
+  assert.match(md, /ok ## Injected/);
+  assert.match(md, /\*\*Запит:\*\* a b/);
+});

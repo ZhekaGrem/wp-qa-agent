@@ -45,6 +45,15 @@ test('slugs are ascii and unique within a plan', () => {
   assert.deepEqual(plan.pages.map((p) => p.slug), ['a-b', 'a-b-2']);
 });
 
+test('a run id that could escape the runs directory is refused', () => {
+  for (const runId of ['../evil', 'a/b', 'a\\b', '..', '.', 'x y', '']) {
+    const { ok, errors } = normalizePlan({ runId, pages: ['/'] }, { baseUrl });
+    assert.equal(ok, false, runId);
+    assert.deepEqual(errors, ['runId must match ^[\\w.-]+$ and not be only dots'], runId);
+  }
+  assert.equal(normalizePlan({ runId: '20260927T100000Z-scan.v2', pages: ['/'] }, { baseUrl }).ok, true);
+});
+
 test('viewport heights and run ids', () => {
   assert.deepEqual(viewportSize(360), { width: 360, height: 740 });
   assert.deepEqual(viewportSize(1000), { width: 1000, height: 625 });

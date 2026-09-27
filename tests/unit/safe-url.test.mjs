@@ -26,6 +26,18 @@ const cases = [
   ['/wp-admin/plugins.php?action=deactivate&plugin=x&_wpnonce=y', 'admin', false, 'mutating-param:action'],
   ['/wp-admin/post.php?post=1&action=trash&_wpnonce=abc', 'admin', false, 'mutating-param:action'],
   ['/wp-admin/options.php', 'admin', false, 'admin-page-not-allowlisted'],
+  ['/wp-admin/admin-post.php', 'admin', false, 'mutating-endpoint'],
+  // Percent-encoded paths reach the same PHP file on the server.
+  ['/wp-cron%2ephp', 'visitor', false, 'mutating-endpoint'],
+  ['/%77p-login.php', 'visitor', false, 'mutating-endpoint'],
+  ['/wp-admin%2fadmin-ajax.php', 'admin', false, 'mutating-endpoint'],
+  ['/wp-admin/%6fptions.php', 'admin', false, 'admin-page-not-allowlisted'],
+  ['/%E0%A4%A', 'visitor', false, 'invalid-url'],
+  // Any nonce-like parameter, and the `security` nonce WooCommerce uses.
+  ['/?my_nonce=abc', 'visitor', false, 'mutating-param:my_nonce'],
+  ['/shop/?wcNonce=abc', 'visitor', false, 'mutating-param:wcNonce'],
+  ['/?security=abc123', 'visitor', false, 'mutating-param:security'],
+  ['/%D0%BA%D0%BE%D0%BD%D1%82%D0%B0%D0%BA%D1%82%D0%B8/', 'visitor', true, 'ok'],
 ];
 
 for (const [url, audience, allowed, reason] of cases) {

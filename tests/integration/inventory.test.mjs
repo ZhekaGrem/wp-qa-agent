@@ -49,3 +49,14 @@ test('an unreachable site is an access FAIL, not a crash', async () => {
   assert.equal(inv.access.verdict, 'FAIL');
   assert.deepEqual(inv.access.login, { ok: false, reason: 'site-unreachable' });
 });
+
+test('a base URL that redirects to another host is REVIEW with base-url-redirects, and nothing is posted', async (t) => {
+  const wp = createFakeWp({ canonicalHost: 'localhost' });
+  const url = await wp.start();
+  t.after(() => wp.stop());
+  const inv = await buildInventory({ baseUrl: url, user: 'qa-admin', password: 'secret', statePath: tmpState() });
+  assert.equal(inv.access.verdict, 'REVIEW');
+  assert.equal(inv.access.reason, 'base-url-redirects');
+  assert.equal(inv.access.redirectsTo, `http://localhost:${new URL(url).port}`);
+  assert.ok(wp.hits.every((h) => !h.startsWith('POST')), wp.hits.join('\n'));
+});

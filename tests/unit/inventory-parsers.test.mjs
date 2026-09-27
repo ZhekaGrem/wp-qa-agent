@@ -36,4 +36,5 @@ test('accessVerdict', () => {
   assert.equal(accessVerdict({ homeStatus: 200, login: { ok: false }, credentialsProvided: true }), 'FAIL');
   assert.equal(accessVerdict({ homeStatus: 503, login: { ok: true }, credentialsProvided: true }), 'FAIL');
   assert.equal(accessVerdict({ homeStatus: 0, login: { ok: false }, credentialsProvided: false }), 'FAIL');
+  assert.equal(accessVerdict({ homeStatus: 301, login: { ok: false, reason: 'base-url-redirects' }, credentialsProvided: true, redirectsTo: 'https://www.s.test' }), 'REVIEW');
 });

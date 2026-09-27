@@ -7,6 +7,8 @@ import { aggregateRun } from '../lib/aggregate.mjs';
 import { applyReview, scanVerdict } from '../lib/review.mjs';
 import { mergeFindings } from '../lib/findings.mjs';
 import { renderReport } from '../lib/report.mjs';
+import { checkUrl } from '../lib/safe-url.mjs';
+import { followRedirects } from '../lib/link-check.mjs';
 
 const [command, target, ...rest] = process.argv.slice(2);
 const option = (name) => (rest.includes(name) ? rest[rest.indexOf(name) + 1] : undefined);
@@ -17,7 +19,31 @@ function fail(message, code = 2) {
   process.exit(code);
 }
 
-function run(planPath) {
+// One GET of the home page, following redirects by hand without ever
+// requesting another origin. Returns that origin when the site sends every
+// visitor there (http -> https, apex -> www): the read-only guard and the URL
+// filter are keyed to QA_BASE_URL, so scanning would be meaningless. A network
+// error returns null; the scan itself reports the site as unreachable.
+async function redirectedOrigin(baseUrl) {
+  try {
+    const result = await followRedirects(baseUrl, {
+      hop: async (url) => {
+        const res = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(20_000) });
+        await res.body?.cancel();
+        return { status: res.status, location: res.headers.get('location') };
+      },
+      allow: (url) => {
+        const check = checkUrl(url, { baseUrl });
+        return check.allowed ? true : check.reason;
+      },
+    });
+    return result.refused && result.reason === 'external' ? new URL(result.refused).origin : null;
+  } catch {
+    return null;
+  }
+}
+
+async function run(planPath) {
   if (!planPath || !fs.existsSync(planPath)) fail(`Plan file not found: ${planPath}`);
   const baseUrl = process.env.QA_BASE_URL;
   if (!baseUrl) fail('QA_BASE_URL is not set. Copy config/wordpress-qa.example.env to .env.qa and fill it in.');
@@ -32,6 +58,8 @@ function run(planPath) {
   for (const p of plan.pages) console.log(`  ${p.url}`);
   if (rest.includes('--dry-run')) return;
   if (plan.audience === 'admin' && !fs.existsSync('.auth/admin.json')) fail('audience "admin" needs .auth/admin.json — run node scripts/wp-inventory.mjs first.');
+  const movedTo = await redirectedOrigin(plan.baseUrl);
+  if (movedTo) fail(`site redirects to ${movedTo}; set QA_BASE_URL to it`);
 
   const runDir = path.resolve(runsRoot(), runId);
   fs.mkdirSync(runDir, { recursive: true });
@@ -89,6 +117,6 @@ function finalize(runDir) {
 }
 
 loadEnvFile(option('--env') || '.env.qa');
-if (command === 'run') run(target);
+if (command === 'run') await run(target);
 else if (command === 'finalize') finalize(target);
 else fail('Usage: node scripts/visual-qa.mjs run <plan.json> [--dry-run] [--env <file>] | finalize <run-dir> [--env <file>]');

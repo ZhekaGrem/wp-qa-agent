@@ -18,6 +18,15 @@ async function scan(baseUrl, planInput, dirs) {
   return { ...result, summary: fs.existsSync(summaryPath) ? JSON.parse(fs.readFileSync(summaryPath, 'utf8')) : null };
 }
 
+// Reads the record of one page × viewport through the run's own plan, so the
+// test does not depend on how page slugs are derived.
+function readRecord(dirs, runId, pagePath, width) {
+  const plan = JSON.parse(fs.readFileSync(path.join(dirs.runs, runId, 'plan.json'), 'utf8'));
+  const page = plan.pages.find((p) => new URL(p.url).pathname === pagePath);
+  const file = path.join(dirs.runs, runId, 'records', `${page.slug}@${width}.json`);
+  return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+}
+
 test('scan finds seeded defects, stays quiet on the clean page and never mutates', async (t) => {
   const wp = createFakeWp();
   const url = await wp.start();
@@ -131,4 +140,48 @@ test('finalize: undecided -> REVIEW, then a confirmed shortcode -> FAIL with a f
   assert.equal(store.findings.length, 1);
   assert.equal(store.findings[0].status, 'OPEN');
   assert.match(fs.readFileSync(path.join(runDir, 'report.md'), 'utf8'), /\*\*Вердикт:\*\* `FAIL`/);
+});
+
+test('a redirect to a refused URL is never followed, by the link checker or by the page', async (t) => {
+  const wp = createFakeWp();
+  const url = await wp.start();
+  t.after(() => wp.stop());
+  const dirs = { runs: tmp('wpqa-runs-'), baselines: tmp('wpqa-base-') };
+  const { output, summary } = await scan(url, { runId: 'redir-1', pages: ['/redirect-link/', '/go/'], viewports: [360] }, dirs);
+  assert.ok(summary, output);
+  assert.ok(wp.hits.every((h) => !/add-to-cart/.test(h)), wp.hits.join('\n'));
+  // The planned /go/ page ends either not scanned or scanned with the redirect listed as blocked.
+  const go = readRecord(dirs, 'redir-1', '/go/', 360);
+  const missing = summary.coverage.missing.find((m) => m.page === `${url}/go/`);
+  assert.ok(missing || go.blocked.some((b) => b.includes('add-to-cart')), JSON.stringify({ missing, go }));
+  if (missing) assert.match(missing.error, /add-to-cart/);
+  // The link is neither reported as broken nor followed.
+  assert.ok(!summary.detections.some((d) => d.id === 'NET-BROKEN-LINK' && d.evidence.includes('/go/')), JSON.stringify(summary.detections));
+});
+
+test('a page script POST to another origin never leaves the browser', async (t) => {
+  const wp = createFakeWp();
+  const collector = createFakeWp();
+  const url = await wp.start();
+  wp.setCollector(await collector.start());
+  t.after(() => Promise.all([wp.stop(), collector.stop()]));
+  const dirs = { runs: tmp('wpqa-runs-'), baselines: tmp('wpqa-base-') };
+  const { status, output } = await scan(url, { runId: 'xpost-1', pages: ['/cross-post/'], viewports: [360], checkLinks: false }, dirs);
+  assert.equal(status, 0, output);
+  assert.ok(collector.hits.every((h) => !h.startsWith('POST')), collector.hits.join('\n'));
+  const record = readRecord(dirs, 'xpost-1', '/cross-post/', 360);
+  assert.ok(record.blocked.some((b) => b === `POST ${collector.url}/collect`), record.blocked.join('\n'));
+});
+
+test('a base URL that redirects to another host stops the run before anything is scanned', async (t) => {
+  const wp = createFakeWp({ canonicalHost: 'localhost' });
+  const url = await wp.start();
+  t.after(() => wp.stop());
+  const dirs = { runs: tmp('wpqa-runs-'), baselines: tmp('wpqa-base-') };
+  const { status, output, summary } = await scan(url, { runId: 'canon-1', pages: ['/clean/'], viewports: [360] }, dirs);
+  assert.equal(status, 2, output);
+  const port = new URL(url).port;
+  assert.match(output, new RegExp(`site redirects to http://localhost:${port}; set QA_BASE_URL to it`));
+  assert.equal(summary, null);
+  assert.deepEqual(wp.hits, ['GET /']);
 });

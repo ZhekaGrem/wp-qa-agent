@@ -110,15 +110,24 @@ function homePage(origin) {
 
 const NOT_FOUND = '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Not found</title></head><body><p>Page not found</p></body></html>';
 
-export function createFakeWp({ user = 'qa-admin', password = 'secret', locale = 'en', restEnabled = true, environmentType = 'staging' } = {}) {
+// Options that model real-site variations:
+// - canonicalHost: every request whose Host header is not `<canonicalHost>:<port>`
+//   is 301-redirected there (apex -> www, http -> https style canonical redirect).
+export function createFakeWp({ user = 'qa-admin', password = 'secret', locale = 'en', restEnabled = true, environmentType = 'staging', canonicalHost = null } = {}) {
   const hits = [];
   let variant = 'a';
   let origin = '';
+  let port = 0;
+  let collector = 'http://127.0.0.1:9';
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://fake.local');
     const p = url.pathname;
     hits.push(`${req.method} ${p}${url.search}`);
+    if (canonicalHost && req.headers.host !== `${canonicalHost}:${port}`) {
+      res.writeHead(301, { location: `http://${canonicalHost}:${port}${req.url}` });
+      return res.end();
+    }
     const loggedIn = (req.headers.cookie || '').includes(SESSION_COOKIE);
     const send = (status, body, type = 'text/html; charset=utf-8', headers = {}) => {
       res.writeHead(status, { 'content-type': type, ...headers });
@@ -158,6 +167,13 @@ export function createFakeWp({ user = 'qa-admin', password = 'secret', locale = 
     if (p === '/server-error/') {
       return send(500, '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Error</title></head><body><p>Internal Server Error</p></body></html>');
     }
+    // An innocent-looking internal link whose redirect lands on a mutating URL.
+    if (p === '/go/') return send(302, '', 'text/plain', { location: '/?add-to-cart=12' });
+    // A page whose script POSTs to another origin (analytics/collector style).
+    if (p === '/cross-post/') {
+      return send(200, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Cross post</title></head><body><main><h1>Cross post</h1>
+<script>fetch(${JSON.stringify(`${collector}/collect`)}, { method: 'POST', mode: 'no-cors', body: 'event=view' }).catch(() => {});</script></main></body></html>`);
+    }
     if (p === '/') return send(200, homePage(origin));
 
     const name = p.replace(/^\/|\/$/g, '');
@@ -173,9 +189,11 @@ export function createFakeWp({ user = 'qa-admin', password = 'secret', locale = 
     hits,
     get url() { return origin; },
     setVariant(value) { variant = value; },
-    async start(port = 0) {
-      await new Promise((resolve) => server.listen(port, '127.0.0.1', resolve));
-      origin = `http://127.0.0.1:${server.address().port}`;
+    setCollector(value) { collector = value; },
+    async start(listenPort = 0) {
+      await new Promise((resolve) => server.listen(listenPort, '127.0.0.1', resolve));
+      port = server.address().port;
+      origin = `http://127.0.0.1:${port}`;
       return origin;
     },
     async stop() {

@@ -5,6 +5,7 @@ import { runProbes, stabilizePage } from '../../lib/probes.mjs';
 import { detectTextDefects } from '../../lib/text-detectors.mjs';
 import { checkUrl } from '../../lib/safe-url.mjs';
 import { guardReadOnly } from '../../lib/read-only-route.mjs';
+import { checkLink } from '../../lib/link-check.mjs';
 import { viewportSize } from '../../lib/plan.mjs';
 import { diffText } from '../../lib/text-diff.mjs';
 import { writeRecord } from '../../lib/aggregate.mjs';
@@ -34,20 +35,43 @@ if (plan) {
             const guard = checkUrl(target.url, { baseUrl: plan.baseUrl, audience: plan.audience });
             if (!guard.allowed) throw new Error(`refused by URL filter: ${guard.reason}`);
 
-            // Read-only guarantee inside the page: same-origin writes and
-            // navigations to refused URLs never leave the browser.
+            // Read-only inside the page: no write request leaves the browser,
+            // and navigations or redirect hops to refused URLs are stopped.
+            // A refused redirect of the planned page itself: the page is not
+            // scanned, and the error says where the site tried to send us.
+            let redirectBlock: { to: string } | null = null;
             await guardReadOnly(page, {
               origin,
-              onBlocked: (entry) => record.blocked.push(entry),
-              allowNavigation: (url) => checkUrl(url, { baseUrl: plan.baseUrl, audience: plan.audience }).allowed,
+              onBlocked: (entry: string, info?: any) => {
+                record.blocked.push(entry);
+                if (info?.mainFrame && info.redirectFrom === target.url && !redirectBlock) redirectBlock = { to: info.to };
+              },
+              allowNavigation: (url: string) => checkUrl(url, { baseUrl: plan.baseUrl, audience: plan.audience }).allowed,
             });
+            const redirectError = () => {
+              if (!redirectBlock) return null;
+              const to = new URL(redirectBlock.to);
+              return new Error(to.origin !== origin
+                ? `site redirects to ${to.origin}; set QA_BASE_URL to it`
+                : `page redirects to a URL the filter refuses (${redirectBlock.to}); not scanned`);
+            };
             page.on('console', (msg) => { if (msg.type() === 'error') record.console.push(msg.text().slice(0, 300)); });
             page.on('pageerror', (err) => record.console.push(`uncaught: ${err.message.slice(0, 300)}`));
             page.on('response', (res) => { if (res.status() >= 400) record.network.push({ url: res.url(), status: res.status() }); });
 
-            const response = await page.goto(target.url, { waitUntil: 'load', timeout: 45_000 });
+            let response;
+            try {
+              response = await page.goto(target.url, { waitUntil: 'load', timeout: 45_000 });
+            } catch (error) {
+              throw redirectError() ?? error;
+            }
+            const refusedRedirect = redirectError();
+            if (refusedRedirect) throw refusedRedirect;
             record.status = response?.status() ?? null;
             const finalUrl = response?.url() ?? target.url;
+            if (new URL(finalUrl).origin !== origin) {
+              throw new Error(`site redirects to ${new URL(finalUrl).origin}; set QA_BASE_URL to it`);
+            }
             await stabilizePage(page);
             const probes = await runProbes(page);
 
@@ -80,9 +104,9 @@ if (plan) {
             if (plan.checkLinks && width === plan.viewports[0]) {
               for (const link of probes.links.slice(0, 50)) {
                 if (link === finalUrl || !checkUrl(link, { baseUrl: plan.baseUrl, audience: plan.audience }).allowed) continue;
-                const res = await page.request.get(link, { maxRedirects: 5, failOnStatusCode: false, timeout: 15_000 }).catch(() => null);
-                if (res && res.status() >= 400) {
-                  record.detections.push({ id: 'NET-BROKEN-LINK', severity: 'medium', message: `Link returns HTTP ${res.status()}`, selector: '', match: String(res.status()), evidence: link });
+                const res = await checkLink(page.request, link, { baseUrl: plan.baseUrl, audience: plan.audience }).catch(() => null);
+                if (res?.checked && res.status >= 400) {
+                  record.detections.push({ id: 'NET-BROKEN-LINK', severity: 'medium', message: `Link returns HTTP ${res.status}`, selector: '', match: String(res.status), evidence: link });
                 }
               }
             }

@@ -1,7 +1,7 @@
 ---
 name: wordpress-evidence-reporter
-description: "Generates a one-time QA report for a specific run by reading tracker data (test catalog, findings, run summary) and run artifacts. Does NOT maintain its own findings store — that is the job of wordpress-test-tracker."
-allowed-tools: Read, Grep, Glob, Bash
+description: "Use when a guarded CI-style QA run (/wordpress-qa) has finished and needs a one-time human-readable report built from its run artifacts, the test catalog and findings. Reads tracker data only and does not maintain findings. Visual runs from /wp-check write their own report through scripts/visual-qa.mjs finalize."
+allowed-tools: Read, Grep, Glob
 ---
 # WordPress Evidence Reporter
 

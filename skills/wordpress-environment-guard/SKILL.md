@@ -1,7 +1,7 @@
 ---
 name: wordpress-environment-guard
-description: Proves that a WordPress or WooCommerce target is an authorized local/staging environment and establishes safe permissions before tests, updates, fixture creation, payments, emails, refunds, WP-CLI writes, or database operations. Use this first for every QA run.
-allowed-tools: Read, Grep, Glob, Bash
+description: Use first in every WP-CLI-based QA run to prove that a WordPress or WooCommerce target is an authorized local/staging environment and to establish safe permissions before tests, updates, fixture creation, payments, emails, refunds, WP-CLI writes or database operations. Requires WP-CLI access; for sites reachable only through a wp-admin login use wp-admin-access instead.
+allowed-tools: Read, Grep, Glob
 ---
 # WordPress Environment Guard
 

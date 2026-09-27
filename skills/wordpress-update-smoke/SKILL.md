@@ -1,7 +1,7 @@
 ---
 name: wordpress-update-smoke
-description: Runs a guarded before-and-after smoke workflow for WordPress core, plugin, theme, Gutenberg, or WooCommerce updates on local/staging. Use when validating updates, regressions, or site health after maintenance.
-allowed-tools: Read, Grep, Glob, Bash
+description: Use when validating WordPress core, plugin, theme, Gutenberg or WooCommerce updates on local/staging with WP-CLI or SSH access — runs a guarded before-and-after smoke workflow. For sites with wp-admin access only, use wp-visual-content-qa baseline and compare instead.
+allowed-tools: Read, Grep, Glob
 ---
 # WordPress Update Smoke
 

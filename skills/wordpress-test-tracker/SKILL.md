@@ -1,7 +1,7 @@
 ---
 name: wordpress-test-tracker
-description: "Tracks planned, generated, executed, failed, fixed, and blocked WordPress/Playwright tests across QA runs. Updates the persistent test catalog, finding registry, run history, and human-readable QA status dashboard."
-allowed-tools: Read, Grep, Glob, Bash
+description: "Use when Playwright test plans, generated specs or execution results must be registered across QA runs: updates qa/test-catalog.json, qa/findings.json, run history and the qa/status.md dashboard using stable testIds and the finding lifecycle. The agent never sets CLOSED."
+allowed-tools: Read, Grep, Glob
 ---
 # WordPress Test Tracker
 

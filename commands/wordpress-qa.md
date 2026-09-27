@@ -2,6 +2,8 @@
 description: Run the guarded WordPress QA workflow for a local or staging target
 argument-hint: <target-url> [scope]
 ---
+This workflow needs WP-CLI access to a local or staging site. For sites where only a wp-admin login is available, use `/wp-check` instead.
+
 Run the WordPress QA workflow for `$ARGUMENTS`.
 
 1. Invoke `wordpress-environment-guard` and stop if its verdict is not PASS.

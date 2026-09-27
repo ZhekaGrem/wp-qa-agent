@@ -1,7 +1,7 @@
 ---
 name: wordpress-state-verifier
 description: Verifies the real server-side result of critical WordPress and WooCommerce actions after browser or API tests. Use after publishing, form submission, checkout, stock changes, coupons, order status changes, cron, email, webhooks, refunds, or cache invalidation.
-allowed-tools: Read, Grep, Glob, Bash
+allowed-tools: Read, Grep, Glob
 ---
 # WordPress State Verifier
 

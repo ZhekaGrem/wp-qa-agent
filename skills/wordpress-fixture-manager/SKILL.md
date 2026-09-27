@@ -1,7 +1,7 @@
 ---
 name: wordpress-fixture-manager
 description: Plans, creates, inventories, and cleans deterministic WordPress or WooCommerce test fixtures through WP-CLI or approved APIs. Use after environment guard PASS when tests need users, posts, pages, products, coupons, carts, orders, or known content states.
-allowed-tools: Read, Grep, Glob, Bash
+allowed-tools: Read, Grep, Glob
 ---
 # WordPress Fixture Manager
 

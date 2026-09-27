@@ -1,7 +1,7 @@
 ---
 name: playwright-test-planner
-description: "Superpower for testers: uses Playwright Test Agents (v1.56+) to explore a WordPress/WooCommerce site, produce a Markdown test plan, generate .spec.ts files with stable testId annotations, and optionally propose healing diffs for failing tests."
-allowed-tools: Read, Grep, Glob, Bash
+description: "Use when a local or staging WordPress/WooCommerce site needs new automated Playwright tests: explores the site with Playwright Test Agents (v1.56+), writes a Markdown test plan, generates .spec.ts files with stable testId annotations, and proposes (never applies) healing diffs for failing tests. Not for sites with wp-admin access only — use wp-visual-content-qa there."
+allowed-tools: Read, Grep, Glob
 ---
 # Playwright Test Planner
 
@@ -16,7 +16,7 @@ Explore a WordPress site using Playwright Test Agents, produce a test plan, gene
 - Playwright browsers installed (`npx playwright install`).
 - Playwright Test Agents initialized (`npx playwright init-agents --loop=<client>`).
   Supported clients: `claude`, `vscode`, `codex`, `opencode`, `copilot`.
-- `@wordpress/e2e-test-utils-playwright` available for WP-specific fixtures.
+- `@wordpress/e2e-test-utils-playwright` only on disposable local environments: its request utilities include `deleteAllPosts`, `deleteAllPages` and `deleteAllMedia` with `force: true` and default to `admin`/`password`. Never point it at a shared staging or production site.
 
 ## Setup: seed test
 

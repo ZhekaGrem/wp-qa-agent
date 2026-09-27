@@ -27,7 +27,7 @@ Write `qa/runs/<run-id>/plan-input.json` (`<run-id>` = UTC `YYYYMMDDTHHMMSSZ-<mo
 | "знайди помилки в тексті" | the pages named (or all pages); `[1366]`; `scan` |
 | "я поміняв меню — чи нічого не поїхало" | home + up to 5 key pages; all 4 viewports; `compare` if a baseline exists for them, else `scan` |
 | "зроби baseline перед оновленням …" | key pages; all 4 viewports; `baseline` |
-| "порівняй після оновлення" | same pages and viewports as the latest `baseline` run; `compare` |
+| "порівняй після оновлення" | same pages and viewports as the latest `baseline` run; `compare`. No `baseline` run exists at all (for these pages or for any page): still use `compare`, never substitute `scan` — pick the named page(s) (or key pages) and the default viewports. The scanner itself reports "no baseline" per page/viewport; only `compare` mode carries that into the verdict, so swapping it for `scan` turns a missing baseline into a false `PASS`. |
 | "перевір адмінку / чернетки" | `audience: "admin"`; only `/wp-admin/` index, edit, plugins, site-health, nav-menus |
 
 - Resolve names to URLs from the inventory ("контакти" → the item whose title or slug matches). Several or no matches: ask.
@@ -72,6 +72,8 @@ It computes the verdict, merges confirmed defects into `qa/findings.json` and wr
 ## 5. Answer the tester
 
 In the tester's language: verdict and its reasons, coverage (N/N), confirmed defects grouped by page (what, where, viewport, screenshot path, detector or your own judgment), what was not checked, and the path to `report.md`.
+
+Missing baseline (`REVIEW` with "немає еталона"): tell the tester to ask for one through this same workflow — a request like "зроби baseline перед оновленням" (see the plan table above), which runs `mode: "baseline"`. Do not point to `npm run qa:plan` or any other script — that runs the unrelated site-exploration Planner mode, not a baseline.
 
 ## Hard rules
 

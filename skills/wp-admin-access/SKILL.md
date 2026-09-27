@@ -10,8 +10,11 @@ The tester has a wp-admin login and nothing else. WP-CLI, SSH, SQL and `scripts/
 ## Procedure
 
 1. Check that `.env.qa` defines `QA_BASE_URL`, `QA_ADMIN_USER`, `QA_ADMIN_PASSWORD`: `Grep` for the key names only, never read or print the values. If the file or a key is missing, ask the tester to copy `config/wordpress-qa.example.env` to `.env.qa` and fill it in. Never ask for the password in chat.
-2. Run `node scripts/wp-inventory.mjs --out qa/runs/<run-id>/inventory.json`, with `<run-id>` = UTC `YYYYMMDDTHHMMSSZ-inventory`.
-   - Login reason `no-admin-bar-after-login` (2FA, captcha, custom login URL): run again with `--login-manual`. A browser window opens; the tester logs in by hand; the session is saved to `.auth/admin.json`.
+2. Run `node scripts/wp-inventory.mjs --out qa/runs/<run-id>/inventory.json`, with `<run-id>` = UTC `YYYYMMDDTHHMMSSZ-inventory`. `access.login.reason`:
+   - `no-credentials` → ask the tester to fill `QA_ADMIN_USER` / `QA_ADMIN_PASSWORD` in `.env.qa` (verdict `REVIEW`; public pages can still be checked).
+   - `login-rejected` → wrong user or password: ask the tester to check `.env.qa`; do not retry repeatedly (lockout plugins).
+   - `no-admin-bar-after-login` (2FA, captcha, custom login URL): run again with `--login-manual`. A browser window opens; the tester logs in by hand; the session is saved to `.auth/admin.json`.
+   - `site-unreachable` → the site did not answer (network, DNS, 5xx): report `BLOCKED` with the home HTTP status; it is not a site defect.
 3. Report to the tester, in their language:
    - access verdict (`PASS`, `REVIEW`, `FAIL`) and the reason;
    - environment type from Site Health (`production`, `staging`, … or `unknown`) — say plainly that production and unknown mean read-only (this flow never changes the site anyway);

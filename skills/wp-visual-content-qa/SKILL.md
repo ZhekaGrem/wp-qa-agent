@@ -41,6 +41,7 @@ Write `qa/runs/<run-id>/plan-input.json` (`<run-id>` = UTC `YYYYMMDDTHHMMSSZ-<mo
 
 Output in `qa/runs/<run-id>/`: `plan.json`, `records/`, `screenshots/`, `text/`, `detections.json`, `diffs/` (compare only).
 Coverage `BLOCKED`: stop and report `BLOCKED` with the printed errors. Do not review anything.
+Coverage `INCOMPLETE`: some page × viewport checks were not scanned (each listed as `not scanned: <key> — <error>` and in `detections.json` → `coverage.missing`). Continue with the review of what was scanned, and name every missing check with its error in your answer. One specific case: `page navigated away to <url> during the scan` means the page redirected itself to another address — tell the tester which address, and that the page was not checked. The verdict will be at best `REVIEW`.
 
 ## 3. Review — you are the second pair of eyes
 

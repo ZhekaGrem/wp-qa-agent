@@ -49,7 +49,7 @@ Detectors produce candidates, not verdicts.
 
 1. For each detection in `detections.json` (each has a `ref`): Read its screenshot, find the element, decide `confirmed` or `rejected` with a one-line reason. A detection seen at several widths is listed once, with all of them in `viewports` (and `screenshots`); one decision covers every width. Typical false positives: intentional carousels, off-canvas menus, decorative duplicate words, brand names that mix alphabets. See `references/defect-catalog.md`.
 2. Look at every screenshot of the narrowest and the widest viewport for what detectors cannot see — misaligned or overlapping blocks, cut-off headers, unreadable contrast, empty sections, broken menus → `AGT-LAYOUT`.
-3. Read `text/<slug>@<widest>.json` in the page's language (`lang`; if empty, infer it from the text): typos → `AGT-TYPO`, grammar → `AGT-GRAMMAR`, untranslated or mixed-language text → `AGT-UNTRANSLATED`. Quote the exact text. Report only what you are sure is wrong in that language.
+3. Read `text/<slug>@<widest>.json` (`<slug>` is the page's `slug` in `plan.json`: a readable part plus a hash of the URL, e.g. `kontakty-1a2b3c4d`) in the page's language (`lang`; if empty, infer it from the text): typos → `AGT-TYPO`, grammar → `AGT-GRAMMAR`, untranslated or mixed-language text → `AGT-UNTRANSLATED`. Quote the exact text. Report only what you are sure is wrong in that language.
 4. Compare mode: for each `CHANGED` entry look at `diffs/<key>/` and the text diff in its record → `expected` (matches the change the tester made) or `regression`.
 
 Write `qa/runs/<run-id>/review.json`:
@@ -57,8 +57,8 @@ Write `qa/runs/<run-id>/review.json`:
 ```json
 { "decisions": [{ "ref": "D1", "decision": "confirmed", "reason": "форма не виводиться", "severity": "medium" }],
   "agentFindings": [{ "id": "AGT-TYPO", "page": "https://site/kontakty/", "viewport": 1366, "severity": "low",
-                      "title": "Помилка: «адрес» замість «адреса»", "quote": "Наша адрес", "evidence": "screenshots/kontakty@1366.png" }],
-  "compareDecisions": [{ "key": "home@1366", "decision": "regression", "reason": "меню переноситься на два рядки" }] }
+                      "title": "Помилка: «адрес» замість «адреса»", "quote": "Наша адрес", "evidence": "screenshots/kontakty-1a2b3c4d@1366.png" }],
+  "compareDecisions": [{ "key": "home-5e6f7a8b@1366", "decision": "regression", "reason": "меню переноситься на два рядки" }] }
 ```
 
 Every detection needs a decision; a missing one keeps the verdict at `REVIEW`. Use exactly `confirmed`/`rejected` (and `expected`/`regression` for compare) — any other value counts as no decision.

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizePlan, pageSlug, viewportSize, newRunId, DEFAULT_VIEWPORTS } from '../../lib/plan.mjs';
+import { shortHash } from '../../lib/hash.mjs';
 
 const baseUrl = 'https://site.test';
 
@@ -14,7 +15,7 @@ test('defaults: scan, visitor, four viewports, links checked', () => {
   assert.equal(plan.checkLinks, true);
   assert.equal(plan.baseUrl, 'https://site.test/');
   assert.equal(plan.host, 'site.test');
-  assert.deepEqual(plan.pages, [{ url: 'https://site.test/', label: '/', slug: 'home' }]);
+  assert.deepEqual(plan.pages, [{ url: 'https://site.test/', label: '/', slug: `home-${shortHash('https://site.test/')}` }]);
 });
 
 test('mutating or foreign pages are refused with a reason', () => {
@@ -37,12 +38,27 @@ test('invalid mode and viewports are reported', () => {
   assert.deepEqual(errors, ['mode must be one of scan, baseline, compare', 'viewports must be integers between 280 and 3840']);
 });
 
-test('slugs are ascii and unique within a plan', () => {
-  assert.equal(pageSlug('https://s.test/'), 'home');
-  assert.equal(pageSlug('https://s.test/contacts/'), 'contacts');
-  assert.equal(pageSlug('https://s.test/shop/?orderby=price'), 'shop-orderby-price');
-  const { plan } = normalizePlan({ pages: ['/a-b/', '/a_b/'] }, { baseUrl });
-  assert.deepEqual(plan.pages.map((p) => p.slug), ['a-b', 'a-b-2']);
+test('slugs are a readable ascii part plus a hash of the full URL', () => {
+  assert.match(pageSlug('https://s.test/'), /^home-[0-9a-f]{8}$/);
+  assert.match(pageSlug('https://s.test/contacts/'), /^contacts-[0-9a-f]{8}$/);
+  assert.match(pageSlug('https://s.test/shop/?orderby=price'), /^shop-orderby-price-[0-9a-f]{8}$/);
+  assert.equal(pageSlug('https://s.test/contacts/'), `contacts-${shortHash('https://s.test/contacts/')}`);
+  // Non-ASCII is dropped from the readable part; the hash keeps pages apart.
+  const kontakty = pageSlug('https://s.test/%D0%BA%D0%BE%D0%BD%D1%82%D0%B0%D0%BA%D1%82%D0%B8/');
+  const novyny = pageSlug('https://s.test/%D0%BD%D0%BE%D0%B2%D0%B8%D0%BD%D0%B8/');
+  assert.match(kontakty, /^page-[0-9a-f]{8}$/);
+  assert.notEqual(kontakty, novyny);
+  assert.match(pageSlug('https://s.test/uk/%D0%BA%D0%BE%D0%BD%D1%82%D0%B0%D0%BA%D1%82%D0%B8-2/'), /^uk-2-[0-9a-f]{8}$/);
+  assert.notEqual(pageSlug('https://s.test/about'), pageSlug('https://s.test/about/'));
+  assert.ok(pageSlug(`https://s.test/${'a'.repeat(200)}/`).length <= 60 + 1 + 8);
+});
+
+test('slugs do not depend on the order of pages in the plan', () => {
+  const pages = ['/контакти/', '/новини/', '/a-b/', '/a_b/'];
+  const slugs = (list) => Object.fromEntries(normalizePlan({ pages: list }, { baseUrl }).plan.pages.map((p) => [p.url, p.slug]));
+  const forward = slugs(pages);
+  assert.deepEqual(slugs([...pages].reverse()), forward);
+  assert.equal(new Set(Object.values(forward)).size, 4);
 });
 
 test('a run id that could escape the runs directory is refused', () => {
@@ -58,4 +74,9 @@ test('viewport heights and run ids', () => {
   assert.deepEqual(viewportSize(360), { width: 360, height: 740 });
   assert.deepEqual(viewportSize(1000), { width: 1000, height: 625 });
   assert.match(newRunId('scan'), /^\d{8}T\d{6}Z-scan$/);
+});
+
+test('a page listed twice is planned once', () => {
+  const { plan } = normalizePlan({ pages: ['/a/', 'https://site.test/a/'] }, { baseUrl });
+  assert.equal(plan.pages.length, 1);
 });

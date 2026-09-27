@@ -20,10 +20,14 @@ async function scan(baseUrl, planInput, dirs) {
 
 // Reads the record of one page × viewport through the run's own plan, so the
 // test does not depend on how page slugs are derived.
-function readRecord(dirs, runId, pagePath, width) {
+function keyOf(dirs, runId, pagePath, width) {
   const plan = JSON.parse(fs.readFileSync(path.join(dirs.runs, runId, 'plan.json'), 'utf8'));
   const page = plan.pages.find((p) => new URL(p.url).pathname === pagePath);
-  const file = path.join(dirs.runs, runId, 'records', `${page.slug}@${width}.json`);
+  return `${page.slug}@${width}`;
+}
+
+function readRecord(dirs, runId, pagePath, width) {
+  const file = path.join(dirs.runs, runId, 'records', `${keyOf(dirs, runId, pagePath, width)}.json`);
   return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
 }
 
@@ -43,7 +47,7 @@ test('scan finds seeded defects, stays quiet on the clean page and never mutates
   assert.ok(!at('/overflow/', 'VIS-OVERFLOW-X', 1366));
   assert.ok(at('/server-error/', 'NET-HTTP-ERROR'));
   assert.deepEqual(summary.detections.filter((d) => d.page === `${url}/clean/`), []);
-  assert.ok(fs.existsSync(path.join(dirs.runs, 'scan-1', 'screenshots', 'clean@360.png')));
+  assert.ok(fs.existsSync(path.join(dirs.runs, 'scan-1', 'screenshots', `${keyOf(dirs, 'scan-1', '/clean/', 360)}.png`)));
   assert.ok(wp.hits.every((h) => !/add-to-cart|_wpnonce|logout/.test(h) && !h.startsWith('POST')), wp.hits.join('\n'));
 });
 
@@ -78,14 +82,13 @@ test('a script or iframe navigation to a refused URL is aborted in every frame a
   assert.equal(status, 0, output);
   assert.equal(summary.coverage.status, 'COMPLETE');
   assert.ok(wp.hits.every((h) => !/add-to-cart|_wpnonce|logout/.test(h)), wp.hits.join('\n'));
-  const recordPath = path.join(dirs.runs, 'trap-1', 'records', 'nav-trap@360.json');
-  const record = JSON.parse(fs.readFileSync(recordPath, 'utf8'));
+  const record = readRecord(dirs, 'trap-1', '/nav-trap/', 360);
   assert.ok(record.blocked.some((b) => b.startsWith('NAVIGATE ') && b.includes('add-to-cart')), record.blocked.join('\n'));
   assert.ok(record.blocked.some((b) => b.startsWith('NAVIGATE ') && b.includes('logout')), record.blocked.join('\n'));
   // The blocked navigations must never actually replace the document being
   // scanned: the captured text has to be nav-trap.html's own content, not an
   // empty capture of whatever Chromium showed after the block.
-  const text = JSON.parse(fs.readFileSync(path.join(dirs.runs, 'trap-1', 'text', 'nav-trap@360.json'), 'utf8'));
+  const text = JSON.parse(fs.readFileSync(path.join(dirs.runs, 'trap-1', 'text', `${keyOf(dirs, 'trap-1', '/nav-trap/', 360)}.json`), 'utf8'));
   assert.equal(text.title, 'Nav trap');
   assert.equal(text.lang, 'en');
   assert.ok(text.blocks.some((b) => b.text.includes('Nav trap')), JSON.stringify(text.blocks));
@@ -102,7 +105,7 @@ test('a script navigation to an allowed URL is reported as not scanned, not misl
   // on the INCOMPLETE status this test is about.
   const { summary } = await scan(url, { runId: 'away-1', pages: ['/nav-away/', '/clean/'], viewports: [360], checkLinks: false }, dirs);
   assert.equal(summary.coverage.status, 'INCOMPLETE');
-  const missing = summary.coverage.missing.find((m) => m.key === 'nav-away@360');
+  const missing = summary.coverage.missing.find((m) => m.key === keyOf(dirs, 'away-1', '/nav-away/', 360));
   assert.ok(missing, JSON.stringify(summary.coverage.missing));
   assert.match(missing.error, /navigated away to .*\/clean\//);
   assert.deepEqual(summary.detections, []);

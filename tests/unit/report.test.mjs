@@ -53,3 +53,21 @@ test('a defect seen at several widths lists every width', () => {
   });
   assert.match(md, /\| 360, 1366 \|/);
 });
+
+test('page addresses are shown decoded', () => {
+  const page = 'https://s.test/%D0%BA%D0%BE%D0%BD%D1%82%D0%B0%D0%BA%D1%82%D0%B8/';
+  const md = renderReport({
+    plan: { request: '', baseUrl: 'https://s.test/', mode: 'scan', audience: 'visitor' },
+    summary: { coverage: { planned: 1, scanned: 1, missing: [], status: 'COMPLETE' }, compare: [] },
+    applied: {
+      confirmed: [{ source: 'detector', id: 'TXT-SHORTCODE', page, viewport: 360, severity: 'medium', title: 'Shortcode', evidence: 'screenshots/a.png', actual: '[x_y]' }],
+      rejected: [{ ref: 'D2', id: 'VIS-OVERFLOW-X', page, viewport: 360, reason: 'carousel' }],
+      undecided: [], unreviewedChanges: [], missingBaselines: [], invalid: [],
+    },
+    result: { verdict: 'FAIL', reasons: [] },
+    findingIds: [],
+  });
+  assert.match(md, /\| https:\/\/s\.test\/контакти\/ \|/);
+  assert.match(md, /\(https:\/\/s\.test\/контакти\/, 360px\)/);
+  assert.ok(!md.includes('%D0'));
+});

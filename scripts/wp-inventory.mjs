@@ -5,6 +5,7 @@ import { chromium, request as playwrightRequest } from '@playwright/test';
 import { loadEnvFile } from '../lib/env.mjs';
 import { checkUrl, ensureSlash } from '../lib/safe-url.mjs';
 import { ensureAdminSession } from '../lib/wp-session.mjs';
+import { guardReadOnly } from '../lib/read-only-route.mjs';
 import { parseSiteHealthCopy, parseSitemapLocs, parseHreflang, parseHtmlLang, accessVerdict } from '../lib/inventory-parsers.mjs';
 
 async function fetchRest(api, route, limit, type) {
@@ -52,6 +53,7 @@ async function readSiteHealth(base, statePath) {
   try {
     const context = await browser.newContext({ storageState: statePath });
     const page = await context.newPage();
+    await guardReadOnly(page, { origin: new URL(base).origin, allowLoginPost: false });
     await page.goto(url, { timeout: 60_000 });
     const copy = await page.locator('[data-clipboard-text]').first().getAttribute('data-clipboard-text', { timeout: 15_000 }).catch(() => null);
     return copy ? parseSiteHealthCopy(copy) : {};
@@ -68,9 +70,12 @@ export async function buildInventory({ baseUrl, user, password, statePath = '.au
     const homeStatus = home ? home.status() : 0;
     const homeHtml = home ? await home.text() : '';
     const credentialsProvided = manualLogin || Boolean(user && password);
-    const login = credentialsProvided
-      ? await ensureAdminSession({ baseUrl: base, user, password, statePath, manual: manualLogin })
-      : { ok: false, reason: 'no-credentials' };
+    const siteUnreachable = homeStatus === 0 || homeStatus >= 500;
+    const login = !credentialsProvided
+      ? { ok: false, reason: 'no-credentials' }
+      : siteUnreachable
+        ? { ok: false, reason: 'site-unreachable' }
+        : await ensureAdminSession({ baseUrl: base, user, password, statePath, manual: manualLogin });
     const site = login.ok ? await readSiteHealth(base, statePath) : {};
     return {
       generatedAt: new Date().toISOString(),

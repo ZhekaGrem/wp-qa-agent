@@ -79,7 +79,9 @@ ${failed ? `<div id="login_error">${t.error}</div>` : ''}
 function adminPage(locale, body) {
   return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><title>Admin</title></head><body class="wp-admin">
 <div id="wpadminbar"><a href="/wp-login.php?action=logout&amp;_wpnonce=abc">Log out</a></div>
-<div id="wpbody">${body}</div></body></html>`;
+<div id="wpbody">${body}</div>
+<script>fetch('/wp-admin/admin-ajax.php', { method: 'POST', body: 'action=heartbeat' }).catch(() => {});</script>
+</body></html>`;
 }
 
 function siteHealthBody(origin, environmentType) {

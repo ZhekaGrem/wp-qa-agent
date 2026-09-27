@@ -43,3 +43,9 @@ test('a wrong password is FAIL with login-rejected, not a site defect', async (t
   assert.equal(inv.access.verdict, 'FAIL');
   assert.deepEqual(inv.access.login, { ok: false, reason: 'login-rejected' });
 });
+
+test('an unreachable site is an access FAIL, not a crash', async () => {
+  const inv = await buildInventory({ baseUrl: 'http://127.0.0.1:9', user: 'qa-admin', password: 'secret', statePath: tmpState() });
+  assert.equal(inv.access.verdict, 'FAIL');
+  assert.deepEqual(inv.access.login, { ok: false, reason: 'site-unreachable' });
+});

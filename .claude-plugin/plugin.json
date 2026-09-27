@@ -1,0 +1,7 @@
+{
+  "name": "wp-qa-agent",
+  "version": "0.2.0",
+  "description": "WordPress QA toolkit: read-only visual and content checks with wp-admin access only, plus guarded Playwright workflows for local and staging sites.",
+  "author": { "name": "Jeka" },
+  "license": "MIT"
+}

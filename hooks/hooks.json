@@ -6,9 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node scripts/wp-admin-write-guard.mjs",
-            "timeout": 10,
-            "statusMessage": "Checking Write Guard policy..."
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/wp-admin-write-guard.mjs\"",
+            "timeout": 10
           }
         ]
       }

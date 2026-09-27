@@ -1,0 +1,12 @@
+{
+  "name": "wp-qa-agent-local",
+  "owner": { "name": "Jeka" },
+  "description": "Local marketplace for the wp-qa-agent WordPress QA plugin.",
+  "plugins": [
+    {
+      "name": "wp-qa-agent",
+      "source": "./",
+      "description": "Read-only visual and content QA for WordPress sites with wp-admin access only."
+    }
+  ]
+}

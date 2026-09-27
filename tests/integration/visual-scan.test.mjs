@@ -73,6 +73,13 @@ test('a script or iframe navigation to a refused URL is aborted in every frame a
   const record = JSON.parse(fs.readFileSync(recordPath, 'utf8'));
   assert.ok(record.blocked.some((b) => b.startsWith('NAVIGATE ') && b.includes('add-to-cart')), record.blocked.join('\n'));
   assert.ok(record.blocked.some((b) => b.startsWith('NAVIGATE ') && b.includes('logout')), record.blocked.join('\n'));
+  // The blocked navigations must never actually replace the document being
+  // scanned: the captured text has to be nav-trap.html's own content, not an
+  // empty capture of whatever Chromium showed after the block.
+  const text = JSON.parse(fs.readFileSync(path.join(dirs.runs, 'trap-1', 'text', 'nav-trap@360.json'), 'utf8'));
+  assert.equal(text.title, 'Nav trap');
+  assert.equal(text.lang, 'en');
+  assert.ok(text.blocks.some((b) => b.text.includes('Nav trap')), JSON.stringify(text.blocks));
 });
 
 test('a script navigation to an allowed URL is reported as not scanned, not mislabeled', async (t) => {

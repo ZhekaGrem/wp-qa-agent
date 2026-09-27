@@ -55,12 +55,12 @@ if (plan) {
             // stopped by the guard, so without this check the scan would
             // silently keep going against the new document while the record
             // still claims it describes target.url. A *refused* navigation
-            // is aborted, but Chromium still commits the frame to its
-            // network-error page (chrome-error://chromewebdata/) rather than
-            // leaving page.url() unchanged, so that case is told apart by
-            // record.blocked instead of by comparing URLs.
+            // is answered with an empty 204 (see lib/read-only-route.mjs),
+            // which keeps the browser on the current document, so page.url()
+            // genuinely stays put in that case and a plain comparison here
+            // is enough — no exemption needed.
             const stripHash = (u: string) => u.split('#')[0];
-            if (stripHash(page.url()) !== stripHash(finalUrl) && record.blocked.length === 0) {
+            if (stripHash(page.url()) !== stripHash(finalUrl)) {
               throw new Error(`page navigated away to ${page.url()} during the scan`);
             }
 

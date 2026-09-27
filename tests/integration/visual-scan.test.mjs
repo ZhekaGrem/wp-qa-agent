@@ -60,6 +60,21 @@ test('compare: no baseline -> baseline -> same -> changed', async (t) => {
   assert.deepEqual(changed.summary.compare[0].text.added, ['Нова акція: безкоштовна доставка.']);
 });
 
+test('a script or iframe navigation to a refused URL is aborted in every frame and never hits the server', async (t) => {
+  const wp = createFakeWp();
+  const url = await wp.start();
+  t.after(() => wp.stop());
+  const dirs = { runs: tmp('wpqa-runs-'), baselines: tmp('wpqa-base-') };
+  const { status, output, summary } = await scan(url, { runId: 'trap-1', pages: ['/nav-trap/'], viewports: [360], checkLinks: false }, dirs);
+  assert.equal(status, 0, output);
+  assert.equal(summary.coverage.status, 'COMPLETE');
+  assert.ok(wp.hits.every((h) => !/add-to-cart|_wpnonce|logout/.test(h)), wp.hits.join('\n'));
+  const recordPath = path.join(dirs.runs, 'trap-1', 'records', 'nav-trap@360.json');
+  const record = JSON.parse(fs.readFileSync(recordPath, 'utf8'));
+  assert.ok(record.blocked.some((b) => b.startsWith('NAVIGATE ') && b.includes('add-to-cart')), record.blocked.join('\n'));
+  assert.ok(record.blocked.some((b) => b.startsWith('NAVIGATE ') && b.includes('logout')), record.blocked.join('\n'));
+});
+
 test('an unreachable site is BLOCKED with exit code 1', async () => {
   const dirs = { runs: tmp('wpqa-runs-'), baselines: tmp('wpqa-base-') };
   const { status, summary } = await scan('http://127.0.0.1:65530', { runId: 'down-1', pages: ['/'], viewports: [360] }, dirs);

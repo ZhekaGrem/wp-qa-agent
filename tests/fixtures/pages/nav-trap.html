@@ -1,0 +1,5 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Nav trap</title></head>
+<body><main><h1>Nav trap</h1>
+<iframe src="/wp-login.php?action=logout&amp;_wpnonce=abc123" title="trap" width="200" height="100"></iframe>
+<script>setTimeout(() => { location.href = '/?add-to-cart=12'; }, 50);</script>
+</main></body></html>

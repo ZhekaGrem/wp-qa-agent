@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { followRedirects, checkLink } from '../../lib/link-check.mjs';
+import { followRedirects, checkLink, checkLinks } from '../../lib/link-check.mjs';
 
 const base = 'https://s.test/';
 
@@ -57,4 +57,35 @@ test('followRedirects stops before requesting a refused hop', async () => {
   const result = await followRedirects('https://s.test/', { hop, allow: (u) => (new URL(u).origin === 'https://s.test' ? true : 'external') });
   assert.deepEqual(result, { status: 301, url: 'https://s.test/', refused: 'https://www.s.test/', reason: 'external' });
   assert.deepEqual(seen, ['https://s.test/']);
+});
+
+test('checkLinks skips query links, refused links and redirects, and reports broken ones', async () => {
+  const request = fakeRequest({
+    'https://s.test/ok/': [200],
+    'https://s.test/go/': [302, '/?add-to-cart=1'],
+  });
+  const links = ['https://s.test/ok/', 'https://s.test/missing/', 'https://s.test/shop/?orderby=price', 'https://s.test/go/', 'https://s.test/wp-login.php', 'https://s.test/self/'];
+  const out = await checkLinks(request, links, { baseUrl: base, audience: 'visitor', skip: new Set(['https://s.test/self/']), cache: new Map() });
+  assert.deepEqual(out.linkCheck, { checked: 2, skipped: 3, budgetExhausted: false });
+  assert.deepEqual(out.detections.map((d) => [d.id, d.evidence, d.match]), [['NET-BROKEN-LINK', 'https://s.test/missing/', '404']]);
+  assert.deepEqual(request.calls.map((c) => c.url), ['https://s.test/ok/', 'https://s.test/missing/', 'https://s.test/go/']);
+});
+
+test('checkLinks reuses results across pages and stops when the time budget is spent', async () => {
+  const cache = new Map();
+  const request = fakeRequest({ 'https://s.test/ok/': [200] });
+  await checkLinks(request, ['https://s.test/ok/', 'https://s.test/missing/'], { baseUrl: base, audience: 'visitor', cache });
+  const again = await checkLinks(request, ['https://s.test/ok/', 'https://s.test/missing/'], { baseUrl: base, audience: 'visitor', cache });
+  assert.equal(request.calls.length, 2);
+  assert.deepEqual(again.linkCheck, { checked: 2, skipped: 0, budgetExhausted: false });
+  assert.equal(again.detections.length, 1);
+
+  let clock = 0;
+  const slow = fakeRequest({});
+  const origGet = slow.get;
+  slow.get = async (url, options) => { clock += 40_000; return origGet(url, options); };
+  const out = await checkLinks(slow, ['https://s.test/a/', 'https://s.test/b/', 'https://s.test/c/'], { baseUrl: base, audience: 'visitor', cache: new Map(), budgetMs: 60_000, now: () => clock });
+  assert.deepEqual(out.linkCheck, { checked: 2, skipped: 1, budgetExhausted: true });
+  assert.equal(slow.calls.length, 2);
+  assert.ok(slow.calls[1].options.timeout <= 20_000);
 });

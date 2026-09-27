@@ -5,7 +5,7 @@ import { runProbes, stabilizePage } from '../../lib/probes.mjs';
 import { detectTextDefects } from '../../lib/text-detectors.mjs';
 import { checkUrl } from '../../lib/safe-url.mjs';
 import { guardReadOnly } from '../../lib/read-only-route.mjs';
-import { checkLink } from '../../lib/link-check.mjs';
+import { checkLinks } from '../../lib/link-check.mjs';
 import { viewportSize } from '../../lib/plan.mjs';
 import { diffText } from '../../lib/text-diff.mjs';
 import { writeRecord } from '../../lib/aggregate.mjs';
@@ -40,10 +40,16 @@ if (plan) {
             // A refused redirect of the planned page itself: the page is not
             // scanned, and the error says where the site tried to send us.
             let redirectBlock: { to: string } | null = null;
+            // URLs of requests the guard itself stopped: Chromium logs an
+            // aborted request as "Failed to load resource: net::ERR_FAILED",
+            // which is the scanner's doing, not the site's.
+            const blockedUrls = new Set<string>();
+            const consoleErrors: { text: string, url: string }[] = [];
             await guardReadOnly(page, {
               origin,
               onBlocked: (entry: string, info?: any) => {
                 record.blocked.push(entry);
+                blockedUrls.add(entry.slice(entry.indexOf(' ') + 1));
                 if (info?.mainFrame && info.redirectFrom === target.url && !redirectBlock) redirectBlock = { to: info.to };
               },
               allowNavigation: (url: string) => checkUrl(url, { baseUrl: plan.baseUrl, audience: plan.audience }).allowed,
@@ -55,8 +61,8 @@ if (plan) {
                 ? `site redirects to ${to.origin}; set QA_BASE_URL to it`
                 : `page redirects to a URL the filter refuses (${redirectBlock.to}); not scanned`);
             };
-            page.on('console', (msg) => { if (msg.type() === 'error') record.console.push(msg.text().slice(0, 300)); });
-            page.on('pageerror', (err) => record.console.push(`uncaught: ${err.message.slice(0, 300)}`));
+            page.on('console', (msg) => { if (msg.type() === 'error') consoleErrors.push({ text: msg.text().slice(0, 300), url: msg.location().url }); });
+            page.on('pageerror', (err) => consoleErrors.push({ text: `uncaught: ${err.message.slice(0, 300)}`, url: '' }));
             page.on('response', (res) => { if (res.status() >= 400) record.network.push({ url: res.url(), status: res.status() }); });
 
             let response;
@@ -96,19 +102,9 @@ if (plan) {
               if (n.url === finalUrl) continue;
               record.detections.push({ id: 'NET-HTTP-ERROR', severity: 'medium', message: `Resource returned HTTP ${n.status}`, selector: '', match: String(n.status), evidence: n.url });
             }
+            record.console = consoleErrors.filter((c) => !blockedUrls.has(c.url)).map((c) => c.text);
             if (record.console.length) {
               record.detections.push({ id: 'NET-CONSOLE-ERROR', severity: 'low', message: `${record.console.length} console error(s)`, selector: '', match: '', evidence: record.console.slice(0, 3).join(' | ') });
-            }
-
-            // Links are checked once per page, on the first viewport of the plan.
-            if (plan.checkLinks && width === plan.viewports[0]) {
-              for (const link of probes.links.slice(0, 50)) {
-                if (link === finalUrl || !checkUrl(link, { baseUrl: plan.baseUrl, audience: plan.audience }).allowed) continue;
-                const res = await checkLink(page.request, link, { baseUrl: plan.baseUrl, audience: plan.audience }).catch(() => null);
-                if (res?.checked && res.status >= 400) {
-                  record.detections.push({ id: 'NET-BROKEN-LINK', severity: 'medium', message: `Link returns HTTP ${res.status}`, selector: '', match: String(res.status), evidence: link });
-                }
-              }
             }
 
             const masks = plan.masks.map((m: string) => page.locator(m));
@@ -145,6 +141,19 @@ if (plan) {
                 const text = fs.existsSync(baselineText) ? diffText(JSON.parse(fs.readFileSync(baselineText, 'utf8')), texts) : null;
                 const textChanged = Boolean(text && (text.addedCount || text.removedCount));
                 record.compare = { status: visual === 'SAME' && !textChanged ? 'SAME' : 'CHANGED', visual, text };
+              }
+            }
+
+            // Links last, once the page's own evidence is saved: once per
+            // page (first viewport of the plan), within a time budget, and a
+            // failure here never costs the page its scan.
+            if (plan.checkLinks && width === plan.viewports[0]) {
+              try {
+                const links = await checkLinks(page.request, probes.links, { baseUrl: plan.baseUrl, audience: plan.audience, skip: new Set([finalUrl]) });
+                record.detections.push(...links.detections);
+                record.linkCheck = links.linkCheck;
+              } catch (error: any) {
+                record.linkCheck = { checked: 0, skipped: probes.links.length, budgetExhausted: false, error: String(error?.message ?? error).slice(0, 300) };
               }
             }
           } catch (error: any) {

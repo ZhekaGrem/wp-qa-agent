@@ -39,3 +39,23 @@ test('a missing or failed record makes coverage INCOMPLETE; none at all is BLOCK
 test('diffText compares text blocks as multisets', () => {
   assert.deepEqual(diffText(['a', 'b', 'b'], ['b', 'c']), { added: ['c'], removed: ['a', 'b'], addedCount: 1, removedCount: 2 });
 });
+
+test('the same detection at several viewports is merged into one, listing every viewport and screenshot', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wpqa-agg-'));
+  const two = { ...plan, viewports: [360, 768], pages: [plan.pages[0]] };
+  const shortcode = { id: 'TXT-SHORTCODE', severity: 'medium', message: 'Unrendered shortcode is visible', selector: 'main > p', match: '[x_y]', evidence: 'text [x_y]' };
+  const overflow = (px) => ({ id: 'VIS-OVERFLOW-X', severity: 'medium', message: 'overflow', selector: '.wide', match: '', evidence: `right=${px}` });
+  writeRecord(dir, 'a@360', { page: 'https://s.test/a/', viewport: 360, screenshot: 'screenshots/a@360.png', detections: [shortcode, overflow(500)], compare: null });
+  writeRecord(dir, 'a@768', { page: 'https://s.test/a/', viewport: 768, screenshot: 'screenshots/a@768.png', detections: [shortcode, overflow(900)], compare: null });
+  const s = aggregateRun(dir, two);
+  const merged = s.detections.filter((d) => d.id === 'TXT-SHORTCODE');
+  assert.equal(merged.length, 1);
+  assert.deepEqual(merged[0].viewports, [360, 768]);
+  assert.deepEqual(merged[0].screenshots, ['screenshots/a@360.png', 'screenshots/a@768.png']);
+  assert.equal(merged[0].viewport, 360);
+  assert.equal(merged[0].screenshot, 'screenshots/a@360.png');
+  // Different evidence (layout numbers differ per width) stays separate.
+  assert.equal(s.detections.filter((d) => d.id === 'VIS-OVERFLOW-X').length, 2);
+  assert.deepEqual(s.detections.map((d) => d.ref), ['D1', 'D2', 'D3']);
+  assert.deepEqual(s.byId, { 'TXT-SHORTCODE': 1, 'VIS-OVERFLOW-X': 2 });
+});

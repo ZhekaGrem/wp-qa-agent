@@ -20,4 +20,8 @@
 | NET-CONSOLE-ERROR | JavaScript errors in the console | Plugin conflicts, jQuery version issues | Messages in the record | Third-party analytics noise |
 | NET-BROKEN-LINK | Internal link leads to 4xx/5xx | Renamed slugs, deleted pages, typos in menus | Status in the record | Links that need login |
 
+NET-CONSOLE-ERROR next to entries in the record's `blocked` list may be caused by the scanner's own read-only guard: it aborts every write request a page sends, and a script that reacts to that failure can log an error. Messages about the blocked URLs themselves are already filtered out.
+
+A detection that is identical at several widths (typically text, console and network findings) appears once, with every width in `viewports` and every screenshot in `screenshots`.
+
 Agent judgment IDs: `AGT-TYPO`, `AGT-GRAMMAR`, `AGT-UNTRANSLATED`, `AGT-LAYOUT`. Compare: `CMP-REGRESSION`.

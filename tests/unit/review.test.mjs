@@ -12,8 +12,8 @@ test('a confirmed detection is FAIL and becomes a normalised defect', () => {
   assert.equal(scanVerdict(s, applied).verdict, 'FAIL');
   assert.equal(applied.confirmed.length, 1);
   assert.equal(applied.confirmed[0].area, 'content');
-  assert.match(applied.confirmed[0].testId, /^TXT-SHORTCODE@\/a\/@360@[0-9a-f]{8}$/);
-  assert.deepEqual(applied.rejected, [{ ref: 'D2', id: 'VIS-OVERFLOW-X', page: 'https://s.test/a/', viewport: 360, reason: 'carousel' }]);
+  assert.match(applied.confirmed[0].testId, /^TXT-SHORTCODE@\/a\/@any@[0-9a-f]{8}$/);
+  assert.deepEqual(applied.rejected, [{ ref: 'D2', id: 'VIS-OVERFLOW-X', page: 'https://s.test/a/', viewport: 360, viewports: [360], reason: 'carousel' }]);
 });
 
 test('without a review every detection is undecided -> REVIEW', () => {
@@ -69,4 +69,21 @@ test('a malformed compare decision is treated as unreviewed, not expected, and r
   assert.equal(scanVerdict(s, applied).verdict, 'REVIEW');
   assert.ok(applied.unreviewedChanges.includes('home@1366'));
   assert.deepEqual(applied.invalid, [{ key: 'home@1366', value: 'fine' }]);
+});
+
+test('text, network and language findings are one defect for every viewport; layout findings stay per viewport', () => {
+  const s = summary({ detections: [{ ...det('D1'), viewports: [360, 1366] }, det('D2', 'VIS-OVERFLOW-X', '.carousel')] });
+  const applied = applyReview(s, {
+    decisions: [{ ref: 'D1', decision: 'confirmed' }, { ref: 'D2', decision: 'confirmed' }],
+    agentFindings: [
+      { id: 'AGT-TYPO', page: 'https://s.test/a/', viewport: 1366, severity: 'low', title: 't', quote: 'адрес' },
+      { id: 'AGT-LAYOUT', page: 'https://s.test/a/', viewport: 1366, severity: 'low', title: 'menu wraps', quote: 'menu' },
+    ],
+  });
+  const byId = Object.fromEntries(applied.confirmed.map((c) => [c.id, c]));
+  assert.match(byId['TXT-SHORTCODE'].testId, /^TXT-SHORTCODE@\/a\/@any@[0-9a-f]{8}$/);
+  assert.deepEqual(byId['TXT-SHORTCODE'].viewports, [360, 1366]);
+  assert.match(byId['VIS-OVERFLOW-X'].testId, /^VIS-OVERFLOW-X@\/a\/@360@/);
+  assert.match(byId['AGT-TYPO'].testId, /^AGT-TYPO@\/a\/@any@/);
+  assert.match(byId['AGT-LAYOUT'].testId, /^AGT-LAYOUT@\/a\/@1366@/);
 });

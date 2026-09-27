@@ -116,12 +116,17 @@ test('an unreachable site is BLOCKED with exit code 1', async () => {
   assert.match(summary.coverage.missing[0].error, /ERR_CONNECTION_REFUSED|ECONNREFUSED/);
 });
 
-test('finalize: undecided -> REVIEW, then a confirmed shortcode -> FAIL with a finding', async (t) => {
+test('finalize: undecided -> REVIEW, then a confirmed shortcode -> FAIL with one finding for all viewports', async (t) => {
   const wp = createFakeWp();
   const url = await wp.start();
   t.after(() => wp.stop());
   const dirs = { runs: tmp('wpqa-runs-'), baselines: tmp('wpqa-base-') };
-  const { summary } = await scan(url, { runId: 'fin-1', request: 'перевір текст', pages: ['/text-defects/'], viewports: [1366], checkLinks: false }, dirs);
+  const { summary } = await scan(url, { runId: 'fin-1', request: 'перевір текст', pages: ['/text-defects/'], viewports: [360, 1366], checkLinks: false }, dirs);
+  // The same text defect seen at two widths is one detection listing both.
+  const shortcodes = summary.detections.filter((d) => d.id === 'TXT-SHORTCODE');
+  assert.equal(shortcodes.length, 1, JSON.stringify(shortcodes));
+  assert.deepEqual(shortcodes[0].viewports, [360, 1366]);
+  assert.equal(shortcodes[0].screenshots.length, 2);
   const runDir = path.join(dirs.runs, 'fin-1');
   const findingsFile = path.join(tmp('wpqa-findings-'), 'findings.json');
   fs.writeFileSync(findingsFile, JSON.stringify({ version: 1, updatedAt: '', findings: [] }));
@@ -157,6 +162,11 @@ test('a redirect to a refused URL is never followed, by the link checker or by t
   if (missing) assert.match(missing.error, /add-to-cart/);
   // The link is neither reported as broken nor followed.
   assert.ok(!summary.detections.some((d) => d.id === 'NET-BROKEN-LINK' && d.evidence.includes('/go/')), JSON.stringify(summary.detections));
+  // Links with a query string are skipped, the refused redirect counts as skipped, the 404 is checked.
+  const record = readRecord(dirs, 'redir-1', '/redirect-link/', 360);
+  assert.deepEqual(record.linkCheck, { checked: 1, skipped: 2, budgetExhausted: false });
+  assert.ok(wp.hits.every((h) => !h.includes('ref=menu')), wp.hits.join('\n'));
+  assert.ok(summary.detections.some((d) => d.id === 'NET-BROKEN-LINK' && d.evidence === `${url}/missing-page/`));
 });
 
 test('a page script POST to another origin never leaves the browser', async (t) => {
@@ -184,4 +194,17 @@ test('a base URL that redirects to another host stops the run before anything is
   assert.match(output, new RegExp(`site redirects to http://localhost:${port}; set QA_BASE_URL to it`));
   assert.equal(summary, null);
   assert.deepEqual(wp.hits, ['GET /']);
+});
+
+test('the scanner\'s own blocked POST is not reported as a console error and never reaches the server', async (t) => {
+  const wp = createFakeWp();
+  const url = await wp.start();
+  t.after(() => wp.stop());
+  const dirs = { runs: tmp('wpqa-runs-'), baselines: tmp('wpqa-base-') };
+  const { status, output, summary } = await scan(url, { runId: 'frag-1', pages: ['/cart-fragments/'], viewports: [360], checkLinks: false }, dirs);
+  assert.equal(status, 0, output);
+  assert.ok(wp.hits.every((h) => !h.startsWith('POST')), wp.hits.join('\n'));
+  const record = readRecord(dirs, 'frag-1', '/cart-fragments/', 360);
+  assert.ok(record.blocked.some((b) => b.startsWith('POST ') && b.includes('wc-ajax=get_refreshed_fragments')), record.blocked.join('\n'));
+  assert.deepEqual(summary.detections.filter((d) => d.id === 'NET-CONSOLE-ERROR'), []);
 });

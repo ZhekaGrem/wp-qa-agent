@@ -47,7 +47,7 @@ Coverage `INCOMPLETE`: some page × viewport checks were not scanned (each liste
 
 Detectors produce candidates, not verdicts.
 
-1. For each detection in `detections.json` (each has a `ref`): Read its screenshot, find the element, decide `confirmed` or `rejected` with a one-line reason. Typical false positives: intentional carousels, off-canvas menus, decorative duplicate words, brand names that mix alphabets. See `references/defect-catalog.md`.
+1. For each detection in `detections.json` (each has a `ref`): Read its screenshot, find the element, decide `confirmed` or `rejected` with a one-line reason. A detection seen at several widths is listed once, with all of them in `viewports` (and `screenshots`); one decision covers every width. Typical false positives: intentional carousels, off-canvas menus, decorative duplicate words, brand names that mix alphabets. See `references/defect-catalog.md`.
 2. Look at every screenshot of the narrowest and the widest viewport for what detectors cannot see — misaligned or overlapping blocks, cut-off headers, unreadable contrast, empty sections, broken menus → `AGT-LAYOUT`.
 3. Read `text/<slug>@<widest>.json` in the page's language (`lang`; if empty, infer it from the text): typos → `AGT-TYPO`, grammar → `AGT-GRAMMAR`, untranslated or mixed-language text → `AGT-UNTRANSLATED`. Quote the exact text. Report only what you are sure is wrong in that language.
 4. Compare mode: for each `CHANGED` entry look at `diffs/<key>/` and the text diff in its record → `expected` (matches the change the tester made) or `regression`.
@@ -71,7 +71,7 @@ It computes the verdict, merges confirmed defects into `qa/findings.json` and wr
 
 ## 5. Answer the tester
 
-In the tester's language: verdict and its reasons, coverage (N/N), confirmed defects grouped by page (what, where, viewport, screenshot path, detector or your own judgment), what was not checked, and the path to `report.md`.
+In the tester's language: verdict and its reasons, coverage (N/N), confirmed defects grouped by page (what, where, every viewport it was seen at, screenshot path, detector or your own judgment), what was not checked, and the path to `report.md`.
 
 Missing baseline (`REVIEW` with "немає еталона"): tell the tester to ask for one through this same workflow — a request like "зроби baseline перед оновленням" (see the plan table above), which runs `mode: "baseline"`. Do not point to `npm run qa:plan` or any other script — that runs the unrelated site-exploration Planner mode, not a baseline.
 

@@ -39,3 +39,17 @@ test('free text does not inject markdown structure into the report', () => {
   assert.match(md, /ok ## Injected/);
   assert.match(md, /\*\*Запит:\*\* a b/);
 });
+
+test('a defect seen at several widths lists every width', () => {
+  const md = renderReport({
+    plan: { request: '', baseUrl: 'https://s.test/', mode: 'scan', audience: 'visitor' },
+    summary: { coverage: { planned: 2, scanned: 2, missing: [], status: 'COMPLETE' }, compare: [] },
+    applied: {
+      confirmed: [{ source: 'detector', id: 'TXT-SHORTCODE', page: 'https://s.test/a/', viewport: 360, viewports: [360, 1366], severity: 'medium', title: 'Shortcode', evidence: 'screenshots/a@360.png', actual: '[x_y]' }],
+      rejected: [], undecided: [], unreviewedChanges: [], missingBaselines: [], invalid: [],
+    },
+    result: { verdict: 'FAIL', reasons: [] },
+    findingIds: [],
+  });
+  assert.match(md, /\| 360, 1366 \|/);
+});
